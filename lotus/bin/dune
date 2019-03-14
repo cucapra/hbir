@@ -1,0 +1,4 @@
+(executable
+ (name lotus)
+ (public_name lotus)
+ (libraries langstart))

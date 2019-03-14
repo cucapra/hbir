@@ -1,0 +1,49 @@
+open Langstart
+open Ast
+
+let program_file : string option ref = ref None
+
+let set_program_file (arg : string) : unit =
+    match !program_file with
+    | None -> program_file := Some arg
+    | Some _ -> ()  (* Don't overwrite program_file *)
+
+let run_gcc : bool ref = ref false
+let set_gcc () : unit = run_gcc := true
+
+let run_pp : bool ref = ref false
+let set_pp () : unit = run_pp := true
+
+let usage = "HBIR compiler\n"
+let spec : (Arg.key * Arg.spec * Arg.doc) list =
+    [("-pp", Arg.Set run_pp,
+    "Runs the given file with the pretty printer (replaces standard output)");
+     ("-gcc", Arg.Set run_gcc,
+    "Runs the given file with the gcc interpreter (replaces standard output)")
+    ]
+
+let _ =
+    Arg.parse spec set_program_file usage;
+        match !program_file with
+        None -> print_string (Arg.usage_string spec usage) | Some f ->
+    let ch =
+        try open_in f
+        with Sys_error s -> failwith ("Cannot open file: " ^ s) in
+    let prog : program =
+        let lexbuf = Lexing.from_channel ch in
+        try
+            Parser.main Lexer.token lexbuf
+        with
+            | _ ->
+                begin
+                    close_in ch;
+                let pos = lexbuf.Lexing.lex_curr_p in
+                let tok = (Lexing.lexeme lexbuf) in
+                (* let line = pos.Lexing.pos_lnum in *)
+                let cnum = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
+                failwith ("Parsing error at token '" ^ tok ^ "', line "
+                     ^ (string_of_int pos.Lexing.pos_lnum) ^ ", column " ^ string_of_int cnum)
+                end in
+        close_in ch;
+    if !run_pp then print_endline "run_pp\n"; print_endline (Ops.pretty_program prog);
+    if !run_gcc then print_endline "run_gcc\n"; print_endline (Simplec.convert_ast prog)
