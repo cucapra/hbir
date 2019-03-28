@@ -18,6 +18,8 @@ let size = (twos | st | tt | sf | ote | tfs | ft) sizePrefix
 let width = (twos | st | tt | sf | ote | tfs | ft) b
 let number = '-'? digit digit*
 let letter = ['a'-'z' 'A'-'Z']
+let punctuation = ['.' ',' '!']
+let str = '"' (whitespace|letter|punctuation)* '"'
 let identifier = letter (letter | digit)*
 
 (* Token rules *)
@@ -62,6 +64,8 @@ rule token =
     | "length"      { LENGTH }
     | "true"        { TRUE }
     | "false"       { FALSE }
+    (* TODO: Maybe implement this in a different way in the future (ie: don't handle this on the lexer/parser level) *)
+    | "printf"       { PRINTF }
 
     (* Symbols *)
     | "("           { LEFT_PAREN }
@@ -102,6 +106,9 @@ rule token =
 
     (* Integers *)
     | number as number   { INT_LITERAL (int_of_string number) }
+
+    (* String *)
+    | str as str { STR (str) }
 
     (* Identifiers *)
     | identifier as id { ID (id) }

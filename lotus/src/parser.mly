@@ -41,6 +41,7 @@ open Ast
 %token LENGTH
 %token TRUE
 %token FALSE
+%token PRINTF
 
 (* Symbols *)
 %token LEFT_PAREN
@@ -53,6 +54,7 @@ open Ast
 
 %token <int> INT_LITERAL
 %token <string> ID
+%token <string> STR
 
 %token PLUS
 %token MINUS
@@ -235,12 +237,16 @@ stmt:
         {While(e, sl) }
     | FOR; LEFT_PAREN; s1 = stmt; e1 = expr; SEMICOLON; i = ID; EQ; e2=expr RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
         { For((s1, e1, (i,e2)), sl) }
+    | PRINTF; LEFT_PAREN; s = STR; RIGHT_PAREN; SEMICOLON
+        { Print s }
 
 expr:
     | LEFT_PAREN; e = expr; RIGHT_PAREN
         { e }
     | i = INT_LITERAL
         { Int i }
+    | s = STR
+        { String s }
     | e1 = expr; PLUS; e2 = expr
         { Plus (e1, e2) }
     | e1 = expr; MINUS; e2 = expr

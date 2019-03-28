@@ -28,6 +28,7 @@ let pretty_stmt (s : stmt) : string =
     | While (_,_) -> "while "
     | For (_,_) -> "for "
     | Break _ -> "break "
+    | Print s -> "print(" ^ s ^ ")"
 
 let rec eval (e : expr) : int =
     match e with

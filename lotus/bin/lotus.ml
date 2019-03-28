@@ -56,7 +56,7 @@ let prog =
                 end in
         close_in ch;
     if !run_pp then print_endline (Ops.pretty_program prog);
-    (* TODO: Should create a new directory with main.c and Makefile to mirror bsg_manycore programs *)
+    (* TODO: Should create a new directory with main.c and Makefile to mirror bsg_manycore programsg *)
     if !run_bsg then print_endline (Manycore.convert_ast prog);
     if !run_gcc then
         let ch = open_out (*f ^*) "main.c" in

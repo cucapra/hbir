@@ -44,6 +44,7 @@ type stmt =
     | While of expr * (stmt list) (* condition * while-block *)
     | For of (stmt * expr * (string * expr)) * (stmt list)
     | Break of string
+    | Print of string
 
 and if_block = expr * (stmt list)
 

@@ -43,6 +43,7 @@ and convert_stmt (s : stmt) : string =
     | For ((s1,e1,(i,e2)),sl) -> "for (" ^ (convert_stmt s1) ^ " " ^ (convert_expr e1) ^ "; " ^ i ^ "=" ^ (convert_expr e2) ^ ") {\n" ^
                             (convert_stmtlist sl) ^ "}\n"
     | Break _ -> "break "
+    | Print s -> "bsg_printf(" ^ s ^ ");\n"
 
 and convert_ib (i : if_block) : string =
     match i with
@@ -60,4 +61,4 @@ let convert_ast (prog : program) : string =
             match c with
             | [] -> "//empty code list\n}\n"
             | ch::_ -> match ch with
-                | (_, sl) -> (convert_stmtlist sl) ^ "}\n"
+                | (_, sl) -> (convert_stmtlist sl) ^ "bsg_finish();\n}\n"

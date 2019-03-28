@@ -44,6 +44,7 @@ and convert_stmt (s : stmt) : string =
     | For ((s1,e1,(i,e2)),sl) -> "for (" ^ (convert_stmt s1) ^ " " ^ (convert_expr e1) ^ "; " ^ i ^ "=" ^ (convert_expr e2) ^ ") {\n" ^
                             (convert_stmtlist sl) ^ "}\n"
     | Break _ -> "break "
+    | Print s -> "printf(" ^ s ^ ");\n"
 
 and convert_ib (i : if_block) : string =
     match i with
