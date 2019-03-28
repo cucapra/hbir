@@ -46,4 +46,7 @@ let prog =
                 end in
         close_in ch;
     if !run_pp then print_endline (Ops.pretty_program prog);
-    if !run_gcc then print_endline (Simplec.convert_ast prog)
+    if !run_gcc then
+        let ch = open_out (*f ^*) "main.c" in
+        output_string ch (Simplec.convert_ast prog);
+        close_out ch
