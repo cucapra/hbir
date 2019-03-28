@@ -61,7 +61,6 @@ let rec pretty_codelist (cl : code list) : string =
                                                     ^ " with code " ^ (pretty_stmtlist e))) ^ (pretty_codelist ct)
 
 let pretty_program (p : program) : string =
-    "pretty-print: \n" ^
     match p with
     | (target, config, data, code) ->
         (match target with

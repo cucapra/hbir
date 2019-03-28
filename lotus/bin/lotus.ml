@@ -22,7 +22,7 @@ let spec : (Arg.key * Arg.spec * Arg.doc) list =
     "Runs the given file with the gcc interpreter (replaces standard output)")
     ]
 
-let _ =
+let prog =
     Arg.parse spec set_program_file usage;
         match !program_file with
         None -> print_string (Arg.usage_string spec usage) | Some f ->
@@ -45,5 +45,5 @@ let _ =
                      ^ (string_of_int pos.Lexing.pos_lnum) ^ ", column " ^ string_of_int cnum)
                 end in
         close_in ch;
-    if !run_pp then print_endline "run_pp\n"; print_endline (Ops.pretty_program prog);
-    if !run_gcc then print_endline "run_gcc\n"; print_endline (Simplec.convert_ast prog)
+    if !run_pp then print_endline (Ops.pretty_program prog);
+    if !run_gcc then print_endline (Simplec.convert_ast prog)
