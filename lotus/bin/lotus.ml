@@ -12,7 +12,7 @@ let run_gcc : bool ref = ref false
 let set_gcc () : unit = run_gcc := true
 
 let run_bsg : bool ref = ref false
-let set_bsg () : unit = run_gcc := true
+let set_bsg () : unit = run_bsg := true
 
 let run_pp : bool ref = ref false
 let set_pp () : unit = run_pp := true
@@ -57,7 +57,11 @@ let prog =
         close_in ch;
     if !run_pp then print_endline (Ops.pretty_program prog);
     (* TODO: Should create a new directory with main.c and Makefile to mirror bsg_manycore programsg *)
-    if !run_bsg then print_endline (Manycore.convert_ast prog);
+    if !run_bsg then
+        let ch = open_out (*f ^*) "main.c" in
+        output_string ch (Manycore.convert_ast prog);
+        close_out ch;
+        if !run_v then print_endline (Manycore.convert_ast prog);
     if !run_gcc then
         let ch = open_out (*f ^*) "main.c" in
         output_string ch (Simplec.convert_ast prog);
