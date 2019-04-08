@@ -3,6 +3,16 @@ open Ast
 (* BSG Manycore backend to target Manycore RTL Simulator and F1 Instance *)
 (* Translates AST to C-like code and generates Makefile to run on Manycore *)
 
+let makefile = "all: main.run\n
+proc_exe_logs: X0_Y0.pelog X1_Y0.pelog\n
+OBJECT_FILES=main.o bsg_set_tile_x_y.o bsg_printf.o\n
+include ../Makefile.include\n
+BSG_FPU_OP=0\n
+main.riscv: $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) ../common/crt.o
+        $(RISCV_LINK) $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) -o $@ $(RISCV_LINK_OPTS)\n
+main.o: Makefile\n
+include ../../mk/Makefile.tail_rules"
+
 let rec convert_expr (e : expr) : string =
     match e with
     | String str -> str
@@ -62,3 +72,14 @@ let convert_ast (prog : program) : string =
             | [] -> "//empty code list\n}\n"
             | ch::_ -> match ch with
                 | (_, sl) -> (convert_stmtlist sl) ^ "bsg_finish();\n}\n"
+
+let generate_makefile (prog : program) : string =
+    match prog with
+        | (target, _, _, _) ->
+            match target with
+                    | (m1, t) -> match m1 with (_, _, (_, _)) -> "" ^
+                        match t with (_, (e2, e3), m2) -> "bsg_tiles_X = " ^ (convert_expr e2) ^
+                                                           "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
+                                                           makefile ^
+                            match m2 with (_, _, (_, _)) ->
+                                ""
