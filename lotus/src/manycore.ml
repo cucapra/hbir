@@ -9,7 +9,7 @@ OBJECT_FILES=main.o bsg_set_tile_x_y.o bsg_printf.o\n
 include ../Makefile.include\n
 BSG_FPU_OP=0\n
 main.riscv: $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) ../common/crt.o
-        $(RISCV_LINK) $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) -o $@ $(RISCV_LINK_OPTS)\n
+\t$(RISCV_LINK) $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) -o $@ $(RISCV_LINK_OPTS)\n
 main.o: Makefile\n
 include ../../mk/Makefile.tail_rules"
 
@@ -67,7 +67,7 @@ and convert_stmtlist (sl : stmt list) : string =
 let convert_ast (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     match prog with
-        | (_, _, _, c) -> "int main() {\n" ^
+        | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^
             match c with
             | [] -> "//empty code list\n}\n"
             | ch::_ -> match ch with
