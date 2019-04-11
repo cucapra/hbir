@@ -6,6 +6,8 @@ open Ast
 
 let rec convert_expr (e : expr) : string =
     match e with
+    (*TODO: Need to fix this *)
+    | Literal _ -> "literal"
     | String str -> str
     | Int i -> string_of_int i
     | Id i -> i

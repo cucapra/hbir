@@ -8,14 +8,19 @@ type hbir_type =
     | TemporalType of int
     | ConstType
 
-type spmd_type =
+type generic_type =
     | BoolTyp
     | IntTyp
     | FloatTyp
 
+type literal =
+    | XMax
+    | YMax
+
 (* core *)
 (* Should wrap in binop *)
 type expr =
+    | Literal of literal
     | String of string
     | Int of int
     | Bool of bool
@@ -72,13 +77,17 @@ type group_decl =
 
 type code = tile * stmt list
 
+type data_map = string * generic_type * (expr * expr option) * (string * string option) * (expr * expr option) * string
+
+type data_maps = data_map list
+
 (* segments *)
 type target_decl = mem_decl * tile_decl
 
 type config_decl = group_decl list
 
 (* TODO: need to add mem list *)
-type data_decl = expr
+type data_decl = expr * data_maps
 
 type code_decl = code list
 

@@ -1,0 +1,51 @@
+target {
+  memory g[1] {
+    size 8G;
+    width 8B;
+  }
+
+  tile t[1][1] {
+    memory g[1] {
+      size 8G;
+      width 8B;
+    }
+  }
+}
+
+config {
+  group tg[1][1] {
+    group tg1[1][1] {
+    	  tile target.t1[x][y];
+    }
+  }
+}
+
+data {
+  const dim=1;
+
+    A: float[1] = block[target.g.x_max] {
+      target.g[x];
+    }
+
+}
+
+code {
+  config.tg[0][0]{
+    if (true&&true) {
+	    int temp1 = 0;
+    } else if (true&&true) {
+    	float temp2 = 1;
+    } else {
+	    int temp3 = 2;
+    }
+    int j = 0;
+    while (j <10) {
+	    int temp4 = 3;
+	    j = j+1;
+    }
+
+    for (int i=0; i<10; i=i+1) {
+  	   int temp5 = true==true;
+    }
+  }
+}

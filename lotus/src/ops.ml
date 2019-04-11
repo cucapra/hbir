@@ -2,6 +2,7 @@ open Ast
 
 let rec pretty (e : expr) : string =
     match e with
+    | Literal _ -> "literal"
     | String str -> str
     | Int i -> string_of_int i
     | Id i -> i
@@ -32,6 +33,7 @@ let pretty_stmt (s : stmt) : string =
 
 let rec eval (e : expr) : int =
     match e with
+    | Literal _ -> -1
     | String _ -> -1
     | Int i -> i
     | Id _ -> -1
@@ -79,7 +81,7 @@ let pretty_program (p : program) : string =
                       "config group " ^ s1 ^ " with dim " ^ (pretty e1) ^ ", " ^ (pretty e2))
         ) ^ "\n" ^
         (match data with
-        | (d) -> "data with dim " ^ (pretty d)
+        | (d, _) -> "data with dim " ^ (pretty d)
         ) ^ "\n" ^
         (match code with
         | (codeList) -> "code with " ^ (pretty_codelist codeList)
