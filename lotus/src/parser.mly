@@ -165,29 +165,16 @@ group:
 data:
     | DATA; LEFT_BRACE; DIM; EQ; num = expr; SEMICOLON; dl = dataMaps; RIGHT_BRACE
         { (num, dl) }
-(*
-physicalMemory:
-    Is x_max the only valid value
-    | BLOCK; LEFT_BRACE; TARGET; DOT; s = STR; num = expr; RIGHT_BRACE;
-        {s, _, num, _}
-    | BLOCK; LEFT_BRACE; TARGET; DOT; s1 = STR; num1 = expr; RIGHT_BRACE;
-             LEFT_BRACE; TARGET; DOT; s2 = STR; num2 = expr; RIGHT_BRACE;
-        {s1, s2, num1, num2}*)
 
 dataMap:
-(*
-    | s = STR; FLOAT; COLON; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; EQ; (s1, _, num2, _) = physicalMemory
-       {s, FloatTyp, (num1, None), (s1, None), (num2, None)}
-    | s = STR; FLOAT; COLON; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET;
-       EQ; (s1, s2, num3, num4) = physicalMemory
-       {s, FloatTyp, (num1, num2), (s1, s2), (num3, num4)}*)
-    | id = ID; COLON; FLOAT; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; EQ;
+    | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; TARGET; DOT; id1 = ID; DOT; num2 = expr; RIGHT_BRACKET;
                LEFT_BRACE; TARGET; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; RIGHT_BRACE;
-       {id, FloatTyp, (num1, None), (id1, None), (num2, None), id2}
-    (*| s = STR; FLOAT; COLON; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET;
-       EQ; (s1, s2, num3, num4) = physicalMemory
-       {s, FloatTyp, (num1, num2), (s1, s2), (num3, num4)}*)
+       {id, t, (num1, None), (id1, None), (num2, None), id2}
+    | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
+               BLOCK; LEFT_BRACKET; TARGET; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
+               LEFT_BRACE; TARGET; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; RIGHT_BRACE;
+       {id, t, (num1, Some num2), (id1, None), (num3, None), id2}
 
 dataMaps:
     | d = dataMap
@@ -309,3 +296,11 @@ expr:
         { Bool (false)}
     | i = ID
         { Id i }
+
+typ:
+    | FLOAT
+        { FloatTyp }
+    | BOOL
+        { BoolTyp }
+    | INT
+        { IntTyp }
