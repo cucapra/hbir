@@ -13,6 +13,12 @@ type generic_type =
     | IntTyp
     | FloatTyp
 
+type sgmt =
+    | Target
+    | Config
+    | Data
+    | Code
+
 type literal =
     | XMax
     | YMax
@@ -77,7 +83,7 @@ type group_decl =
 
 type code = tile * stmt list
 
-type data_map = string * generic_type * (expr * expr option) * (string * string option) * (expr * expr option) * string
+type data_map = string * generic_type * (expr * expr option) * (string * string option) * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
 
 type data_maps = data_map list
 
