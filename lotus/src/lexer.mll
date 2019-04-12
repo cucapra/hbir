@@ -4,6 +4,7 @@ open Parser
 
 (* Regular expression matchings *)
 let whitespace = ['\t' ' ' '\n']
+let comment = "//" [^ '\r' '\n']*
 let digit = ['0'-'9']
 let st = '1' '6'
 let tt = '3' '2'
@@ -103,6 +104,8 @@ rule token =
 
     (* Whitespace *)
     | whitespace+        { token lexbuf }
+
+    | comment            { token lexbuf }
 
     (* Integers *)
     | number as number   { INT_LITERAL (int_of_string number) }
