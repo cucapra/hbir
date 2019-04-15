@@ -67,7 +67,7 @@ type width_decl = string
 
 type mem_decl = string * expr * (size_decl * width_decl)
 
-type tile_decl = string * (expr * expr) * mem_decl
+type tile_decl = string * (expr * expr) * (mem_decl option)
 
 type tile =  string * (expr * expr)
 

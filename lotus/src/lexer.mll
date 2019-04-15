@@ -21,7 +21,7 @@ let number = '-'? digit digit*
 let letter = ['a'-'z' 'A'-'Z']
 let punctuation = ['.' ',' '!']
 let str = '"' (whitespace|letter|punctuation)* '"'
-let identifier = letter (letter | digit)*
+let identifier = letter (letter | digit | '_')*
 
 (* Token rules *)
 rule token =

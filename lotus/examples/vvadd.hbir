@@ -4,7 +4,7 @@ target{
     memory g[4]{
         size 8G;
         width 8B;
-    };
+    }
 
     tile t[4][4];
 }

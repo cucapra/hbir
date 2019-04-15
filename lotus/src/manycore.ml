@@ -83,5 +83,6 @@ let generate_makefile (prog : program) : string =
                         match t with (_, (e2, e3), m2) -> "bsg_tiles_X = " ^ (convert_expr e2) ^
                                                            "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
                                                            makefile ^
-                            match m2 with (_, _, (_, _)) ->
-                                ""
+                            match m2 with
+                                | None -> ""
+                                | Some mem -> match mem with (_, _, (_, _)) -> ""
