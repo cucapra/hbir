@@ -31,6 +31,7 @@ type expr =
     | Int of int
     | Bool of bool
     | Id of string
+    | Mem of string * expr
     | Plus of expr * expr
     | Minus of expr * expr
     | Times of expr * expr
@@ -49,6 +50,7 @@ type stmt =
     (*| Decl of *)
     | Decl of string * string
     | Assign of string * expr
+    | MemAssign of (string * expr) * expr
     | DeclAssign of string * string * expr
     (*| If of expr * (stmt list) * (stmt option)  condition * if-block * else-block *)
     | If of if_block * (if_block list) * ((stmt list) option)

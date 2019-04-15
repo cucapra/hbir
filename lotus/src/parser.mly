@@ -104,28 +104,28 @@ target:
 
 memory:
     | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, num, (size, width)) }
     | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, String "?", (size, width)) }
     | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, num, ("?", width)) }
     | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, num, (size, "?")) }
     | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, String "?", ("?", width)) }
     | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, String "?", (size, "?")) }
     | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, num, ("?", "?")) }
     | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE
+      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON
         { (id, String "?", ("?", "?")) }
 
 tile:
@@ -140,6 +140,8 @@ tileDecl:
         { (id, (Int 0, Int 0)) }
     | CONFIG; DOT; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET
         { (id, (num1, num2))}
+    | CONFIG; DOT; id = ID; LEFT_BRACKET; X; RIGHT_BRACKET; LEFT_BRACKET; Y; RIGHT_BRACKET
+        { (id, (Int 0, Int 0))}
 
 config:
     | CONFIG; LEFT_BRACE; gr = groupList; RIGHT_BRACE
@@ -159,9 +161,9 @@ groupList:
         { g1@(g2::[]) }
 
 group:
-    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g1 = groupBlk; RIGHT_BRACE
+    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g1 = groupBlk; RIGHT_BRACE; SEMICOLON
         { GroupStmt (id, (num1, num2), g1)}
-    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g2 = group; RIGHT_BRACE
+    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g2 = group; RIGHT_BRACE; SEMICOLON
         { NestedGroup (id, (num1, num2), g2)}
 
 data:
@@ -237,27 +239,29 @@ stmt:
         { Decl ("float", id) }
     | id = ID; EQ; e = expr; SEMICOLON
         { Assign (id, e) }
+    | id = ID; LEFT_BRACKET; e1 = expr; RIGHT_BRACKET; EQ; e2 = expr; SEMICOLON
+        { MemAssign ((id, e1), e2) }
     | INT; id = ID; EQ; e = expr; SEMICOLON
         { DeclAssign ("int", id, e) }
     | BOOL; id = ID; EQ; e = expr; SEMICOLON
         { DeclAssign ("bool", id, e) }
     | FLOAT; id = ID; EQ; e = expr; SEMICOLON
         { DeclAssign ("float", id, e) }
-    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE
         {If((e, sl), [], None) }
     | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmtList; RIGHT_BRACE;
-      ELSE; LEFT_BRACE; sl2 = stmtList; RIGHT_BRACE;
+      ELSE; LEFT_BRACE; sl2 = stmtList; RIGHT_BRACE
         {If((e, sl1), [], Some sl2) }
     | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmtList; RIGHT_BRACE;
       el = elseIfList
         {If((e, sl1), el, None) }
     | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmtList; RIGHT_BRACE;
       el = elseIfList
-      ELSE; LEFT_BRACE; sl2 = stmtList; RIGHT_BRACE;
+      ELSE; LEFT_BRACE; sl2 = stmtList; RIGHT_BRACE
         {If((e, sl1), el, Some sl2) }
-    | WHILE; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | WHILE; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE
         {While(e, sl) }
-    | FOR; LEFT_PAREN; s1 = stmt; e1 = expr; SEMICOLON; i = ID; EQ; e2=expr RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | FOR; LEFT_PAREN; s1 = stmt; e1 = expr; SEMICOLON; i = ID; EQ; e2=expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE
         { For((s1, e1, (i,e2)), sl) }
     | PRINTF; LEFT_PAREN; s = STR; RIGHT_PAREN; SEMICOLON
         { Print s }
@@ -301,6 +305,13 @@ expr:
         { Bool (true)}
     | FALSE
         { Bool (false)}
+    | DATA; DOT; i = ID
+        { Id i }
+    | CONFIG; DOT; i = ID
+        { Id i }
+    (* Make a new type for this to retain the index *)
+    | i = ID; LEFT_BRACKET; e = expr; RIGHT_BRACKET;
+        { Mem (i, e) }
     | i = ID
         { Id i }
 

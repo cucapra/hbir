@@ -11,6 +11,7 @@ let rec convert_expr (e : expr) : string =
     | String str -> str
     | Int i -> string_of_int i
     | Id i -> i
+    | Mem (i, e) -> i ^ "[" ^ (convert_expr e) ^ "]"
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
     | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"
     | Times (e1, e2) -> "("^(convert_expr e1) ^ " * " ^ (convert_expr e2)^")"
@@ -36,6 +37,7 @@ and convert_stmt (s : stmt) : string =
     match s with
     | Decl (str1, str2) -> str1 ^ " " ^ str2 ^ ";"
     | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
+    | MemAssign ((str1, expr1), expr2) -> str1 ^ "[" ^ (convert_expr expr1) ^ "]" ^ ("= ") ^ (convert_expr expr2) ^ ";"
     | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
     | If (i,il,s) -> (
         match s with

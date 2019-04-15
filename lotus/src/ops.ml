@@ -6,6 +6,7 @@ let rec pretty (e : expr) : string =
     | String str -> str
     | Int i -> string_of_int i
     | Id i -> i
+    | Mem (i, e) -> i ^ pretty e
     | Plus (e1, e2) -> (pretty e1) ^ " + " ^ (pretty e2)
     | Minus (e1, e2) -> (pretty e1) ^ " - " ^ (pretty e2)
     | Times (e1, e2) -> (pretty e1) ^ " * " ^ (pretty e2)
@@ -24,6 +25,7 @@ let pretty_stmt (s : stmt) : string =
     match s with
     | Decl (_,_) -> "decl "
     | Assign (str1, expr) -> str1 ^ ("= ") ^ (pretty expr)
+    | MemAssign ((str1, expr1), expr2) -> str1 ^ (pretty expr1) ^ ("= ") ^ (pretty expr2)
     | DeclAssign (_,_,_) -> "declAssign "
     | If (_,_,_) -> "if "
     | While (_,_) -> "while "
@@ -37,6 +39,7 @@ let rec eval (e : expr) : int =
     | String _ -> -1
     | Int i -> i
     | Id _ -> -1
+    | Mem (_, _) -> -1
     | Plus (e1, e2) -> (eval e1) + (eval e2)
     | Minus (e1, e2) -> (eval e1) - (eval e2)
     | Times (e1, e2) -> (eval e1) * (eval e2)
