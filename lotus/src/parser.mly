@@ -167,6 +167,7 @@ group:
         { NestedGroup (id, (num1, num2), g2)}
 
 data:
+    (* TODO: Remove hard-coded dimension, allow arbitrary statements here  *)
     | DATA; LEFT_BRACE; DIM; EQ; num = expr; SEMICOLON; dl = dataMaps; RIGHT_BRACE
         { (num, dl) }
 

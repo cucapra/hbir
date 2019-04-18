@@ -13,6 +13,12 @@ main.riscv: $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) ../common/crt.o
 main.o: Makefile\n
 include ../../mk/Makefile.tail_rules"
 
+let convert_generic (g : generic_type) : string =
+    match g with
+    | BoolTyp -> "boolean"
+    | IntTyp -> "int"
+    | FloatTyp -> "float"
+
 let rec convert_expr (e : expr) : string =
     match e with
     (*TODO: Need to fix this *)
@@ -68,14 +74,34 @@ and convert_stmtlist (sl : stmt list) : string =
     | [] -> "//empty stmt list\n"
     | s::st -> ((convert_stmt s)  ^ "\n" ^ (convert_stmtlist st))
 
+(* TODO: Add local tile memory *)
+and convert_dmaps (dmaps : data_map list) : string =
+    match dmaps with
+    | [] -> "//empty dmaps list\n"
+    | d::dt -> (
+        match d with
+        | (i, t, (dim1, _), (_, _), (_,_), (_,_,_), _) -> (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim1) ^ "]" ^
+        " __attribute__ ((section (\".dram\")));"
+     ) ^ ("\n" ^ (convert_dmaps dt))
+
+(* TODO: Remove hard-coding *)
+and convert_mem (prog : program) : string =
+    match prog with
+    | (_, _, d, _) ->
+        match d with
+        | (e, dmaps) -> "int dim = " ^ (convert_expr e) ^ ";\n" ^ (convert_dmaps dmaps)
+
+
 let convert_ast (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
+    convert_mem (prog) ^
     match prog with
-        | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^
-            match c with
-            | [] -> "//empty code list\n}\n"
-            | ch::_ -> match ch with
-                | (_, sl) -> (convert_stmtlist sl) ^ "bsg_finish();\n}\n"
+    | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^
+        match c with
+        | [] -> "//empty code list\n}\n"
+        | ch::_ ->
+            match ch with
+            | (_, sl) -> (convert_stmtlist sl) ^ "bsg_finish();\n}\n"
 
 let generate_makefile (prog : program) : string =
     match prog with
