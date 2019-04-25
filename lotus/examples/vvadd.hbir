@@ -32,9 +32,16 @@ data{
 }
 
 code{
+    int g_done_flag = 0;
+
+    config.tg[0][0]{
+        bsg_finish();
+    }
+
     config.tg[x][y]{
-        for(int i = 0; i<data.dim; i=i+1){
+        for(int i = 0; i<size; i=i+1){
             g_dest[i] = g_src0[i] + g_src1[i];
         }
+        g_done_flag = 1;
     }
 }
