@@ -32,6 +32,7 @@ let pretty_stmt (s : stmt) : string =
     | For (_,_) -> "for "
     | Break _ -> "break "
     | Print s -> "print(" ^ s ^ ")"
+    | BsgFinish -> "bsg_finish()"
 
 let rec eval (e : expr) : int =
     match e with
@@ -89,7 +90,7 @@ let pretty_program (p : program) : string =
         | (d, _) -> "data with dim " ^ (pretty d)
         ) ^ "\n" ^
         (match code with
-        | (codeList) -> "code with " ^ (pretty_codelist codeList)
+        | (_, codeList) -> "code with " ^ (pretty_codelist codeList)
         )
 
 

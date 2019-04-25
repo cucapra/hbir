@@ -67,6 +67,8 @@ rule token =
     | "false"       { FALSE }
     (* TODO: Maybe implement this in a different way in the future (ie: don't handle this on the lexer/parser level) *)
     | "printf"       { PRINTF }
+    (* TODO: Hacky way to implement bsg imperatives *)
+    | "bsg_finish" {BSG_FINISH}
 
     (* Symbols *)
     | "("           { LEFT_PAREN }

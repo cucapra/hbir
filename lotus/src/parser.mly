@@ -42,6 +42,7 @@ open Ast
 %token TRUE
 %token FALSE
 %token PRINTF
+%token BSG_FINISH
 
 (* Symbols *)
 %token LEFT_PAREN
@@ -142,6 +143,8 @@ tileDecl:
         { (id, (num1, num2))}
     | CONFIG; DOT; id = ID; LEFT_BRACKET; X; RIGHT_BRACKET; LEFT_BRACKET; Y; RIGHT_BRACKET
         { (id, (Int 0, Int 0))}
+    | CONFIG; DOT; id = ID; LEFT_BRACKET; i1 = INT_LITERAL ; RIGHT_BRACKET; LEFT_BRACKET; i2 = INT_LITERAL; RIGHT_BRACKET
+        { (id, (Int i1, Int i2))}
 
 config:
     | CONFIG; LEFT_BRACE; gr = groupList; RIGHT_BRACE
@@ -195,9 +198,11 @@ dataMaps:
 (* TODO: Once you enter code section, the parser should enter a state of just checking for SPMD (think in how yacc worked in Java) *)
 code:
     | CODE; LEFT_BRACE; RIGHT_BRACE
-        { ([]) }
+        { (None, []) }
     | CODE; LEFT_BRACE; c = codeList; RIGHT_BRACE
-        { (c) }
+        { (None, c) }
+    | CODE; LEFT_BRACE; s = stmtList; c = codeList; RIGHT_BRACE
+        { (Some s, c) }
 
 codeList:
     | c = codeBlock
@@ -266,6 +271,8 @@ stmt:
         { For((s1, e1, (i,e2)), sl) }
     | PRINTF; LEFT_PAREN; s = STR; RIGHT_PAREN; SEMICOLON
         { Print s }
+    | BSG_FINISH; LEFT_PAREN; RIGHT_PAREN; SEMICOLON
+        { BsgFinish }
 
 expr:
     | LEFT_PAREN; e = expr; RIGHT_PAREN

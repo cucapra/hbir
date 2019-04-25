@@ -49,6 +49,7 @@ and convert_stmt (s : stmt) : string =
                             (convert_stmtlist sl) ^ "}\n"
     | Break _ -> "break "
     | Print s -> "printf(" ^ s ^ ");\n"
+    | BsgFinish -> "bsg_finish();\n"
 
 and convert_ib (i : if_block) : string =
     match i with
@@ -63,6 +64,8 @@ let convert_ast (prog : program) : string =
     match prog with
         | (_, _, _, c) -> "int main( int argc, char * argv [] ) {\n" ^
             match c with
-            | [] -> "//empty code list\n}\n"
-            | ch::_ -> match ch with
-                | (_, sl) -> (convert_stmtlist sl) ^ "}\n"
+            | (_, cl) ->
+                match cl with
+                | [] -> "//empty code list\n}\n"
+                | ch::_ -> match ch with
+                    | (_, sl) -> (convert_stmtlist sl) ^ "}\n"

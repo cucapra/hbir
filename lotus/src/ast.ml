@@ -58,6 +58,7 @@ type stmt =
     | For of (stmt * expr * (string * expr)) * (stmt list)
     | Break of string
     | Print of string
+    | BsgFinish
 
 and if_block = expr * (stmt list)
 
@@ -97,7 +98,7 @@ type config_decl = group_decl list
 (* TODO: need to add mem list *)
 type data_decl = expr * data_maps
 
-type code_decl = code list
+type code_decl = ((stmt list) option) * code list
 
 (* program *)
 (* Consists of target, config, data, and code sections *)

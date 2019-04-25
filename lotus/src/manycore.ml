@@ -64,6 +64,7 @@ and convert_stmt (s : stmt) : string =
                             (convert_stmtlist sl) ^ "}\n"
     | Break _ -> "break "
     | Print s -> "bsg_printf(" ^ s ^ ");\n"
+    | BsgFinish -> "bsg_finish();\n"
 
 and convert_ib (i : if_block) : string =
     match i with
@@ -98,19 +99,21 @@ let convert_ast (prog : program) : string =
     match prog with
     | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^
         match c with
-        | [] -> "//empty code list\n}\n"
-        | ch::_ ->
-            match ch with
-            | (_, sl) -> (convert_stmtlist sl) ^ "bsg_finish();\n}\n"
+        | (_, cl) ->
+            match cl with
+            | [] -> "//empty code list\n}\n"
+            | ch::_ ->
+                match ch with
+                | (_, sl) -> (convert_stmtlist sl) ^ "bsg_finish();\n}\n"
 
 let generate_makefile (prog : program) : string =
     match prog with
-        | (target, _, _, _) ->
-            match target with
-                    | (m1, t) -> match m1 with (_, _, (_, _)) -> "" ^
-                        match t with (_, (e2, e3), m2) -> "bsg_tiles_X = " ^ (convert_expr e2) ^
-                                                           "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
-                                                           makefile ^
-                            match m2 with
-                                | None -> ""
-                                | Some mem -> match mem with (_, _, (_, _)) -> ""
+    | (target, _, _, _) ->
+        match target with
+                | (m1, t) -> match m1 with (_, _, (_, _)) -> "" ^
+                    match t with (_, (e2, e3), m2) -> "bsg_tiles_X = " ^ (convert_expr e2) ^
+                                                       "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
+                                                       makefile ^
+                        match m2 with
+                            | None -> ""
+                            | Some mem -> match mem with (_, _, (_, _)) -> ""
