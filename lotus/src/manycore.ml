@@ -92,6 +92,10 @@ and convert_mem (prog : program) : string =
         match d with
         | (e, dmaps) -> "int dim = " ^ (convert_expr e) ^ ";\n" ^ (convert_dmaps dmaps)
 
+and convert_codelist (cl : code list) : string =
+    match cl with
+    | [] -> "//empty code list\n"
+    | (_,sl)::ct -> (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct)
 
 let convert_ast (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
@@ -99,12 +103,9 @@ let convert_ast (prog : program) : string =
     match prog with
     | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^
         match c with
-        | (_, cl) ->
-            match cl with
-            | [] -> "//empty code list\n}\n"
-            | ch::_ ->
-                match ch with
-                | (_, sl) -> (convert_stmtlist sl) ^ "bsg_finish();\n}\n"
+        | (None, cl) -> (convert_codelist cl) ^ "\n}"
+        | (Some sl, cl) ->
+            (convert_stmtlist sl) ^ (convert_codelist cl) ^ "\n}"
 
 let generate_makefile (prog : program) : string =
     match prog with
