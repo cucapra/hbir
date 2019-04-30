@@ -128,6 +128,9 @@ let generate_makefile (prog : program) : string =
 (* 2) memcpy to read variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataRd", (void<star>)h_a, numBytes, hostToDevice); *)
 (* 3) memcpy from write variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataWr", (void<star>)h_b, numBytes, deviceToHost); *)
 
+(* need to cast int to tuple (which has an Int field of type int) *)
+let f1_temp : tile = "", (Int 0, Int 1)
+
 (* helper to convert tile coords to a string *)
 let string_of_tile(t: tile) : string = 
         match t with
@@ -139,7 +142,7 @@ let f1_includes = "#include \"f1_helper.h\"\n"
 let f1_main = 
         "int main(int argc, char *argv[]) {\n" ^
         "\t" ^ "assert(argc == 2);\n" ^
-        "\t" ^ "char *manycore_program = argv[1];" ^
+        "\t" ^ "char *manycore_program = argv[1];\n" ^
         "\t" ^ "uint8_t fd;\n" ^
         "\t" ^ "if (hb_mc_init_host(&fd) != HB_MC_SUCCESS) {\n" ^
         "\t\t" ^ "printf(\"failed to initialize host.\\n\");\n" ^
@@ -157,8 +160,7 @@ let f1_load_kernel (t : tile) : string =
         "\t" ^ "hb_mc_set_tile_group_origin(fd, 0, 1, 0, 1);\n" ^
         "\t" ^ "hb_mc_load_binary(fd, manycore_program, &x, &y, 1);\n\n"
 
-(* tile (x,y coords) -- symbol name -- array dimenstion (could be '5*6' so use expr type instead of int) *)
-type memcpy = tile * string * expr
+
 
 (* helpers for host and device symbol generation *)
 let f1_host_symbol(symbol : string) : string = 
@@ -168,16 +170,36 @@ let f1_device_symbol(symbol : string) : string =
         (*"d_" ^ symbol*)
         symbol
 
+(* tile (x,y coords) -- symbol name -- array dimenstion *)
+type memcpy = tile * string * string
+
 (* do the appropriate memcpys for each variable read in the kernel *)
 let f1_host_to_device(args : memcpy) : string = 
         match args with
         | (t, symbol, dim) ->
                 (* TODO: assumes each data type is 4 bytes (32 bits) *)
-                let num_bytes = string_of_int(int_of_string((convert_expr dim)) * 4) in
+                let num_bytes = dim ^ " * sizeof(int)" in
                 let host_symbol = f1_host_symbol(symbol) in
                 let device_symbol = f1_device_symbol(symbol) in
                 "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_tile(t) ^ ", manycore_program, \"" ^ 
                 device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", hostToDevice);\n"
+
+(* uhhh... foreach element in dmap array create the appropriate memcpy *)
+let rec f1_convert_dmaps (dmaps : data_map list) : string =
+    match dmaps with
+    | [] -> "//empty dmaps list\n"
+    | d::dt -> (
+        (* for the head, get the name (i) type (t) and xDim (dim1) *)
+        match d with
+        | (i, _, (dim1, _), (_, _), (_,_), (_,_,_), _) -> 
+                let single_memcpy = f1_temp, i, convert_expr dim1 in
+                f1_host_to_device(single_memcpy) ^
+                (* recursively call the function on the next element to process the whole array *)
+                (f1_convert_dmaps dt))
+
+
+
+
 
 let f1_run_and_wait (t : tile) : string = 
         "\t" ^ "hb_mc_unfreeze(fd, " ^ string_of_tile(t) ^ ");\n" ^
@@ -187,8 +209,7 @@ let f1_device_to_host : string = "\t" ^ "hammaSymbolMemcpy(fd, x, y, manycore_pr
 
 let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
 
-(* need to cast int to tuple (which has an Int field of type int) *)
-let f1_temp : tile = "", (Int 0, Int 1)
+
 
 (* emits the host code *)
 let generate_f1_host (prog : program) : string =
@@ -198,9 +219,11 @@ let generate_f1_host (prog : program) : string =
     | (_, _, d, _) -> 
         f1_host_data_gen ^
         f1_load_kernel(f1_temp) ^ 
-        f1_host_to_device(f1_temp, "A", Int 4) ^
+        (* for each data field should create a memcpy cmd*)
+        match d with
+        | (_, dmaps) -> (f1_convert_dmaps dmaps) ^
+        (*f1_host_to_device(f1_temp, "A", 4) ^*)
         f1_run_and_wait(f1_temp) ^
         f1_device_to_host ^
-        f1_cleanup_host ^
-        match d with
-        | (e, dmaps) -> "int dim = " ^ (convert_expr e) ^ ";\n" ^ (convert_dmaps dmaps)
+        f1_cleanup_host
+        
