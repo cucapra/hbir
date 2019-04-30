@@ -58,12 +58,16 @@ let prog =
     if !run_pp then print_endline (Ops.pretty_program prog);
     (* TODO: Should create a new directory with main.c and Makefile to mirror bsg_manycore programsg *)
     if !run_bsg then
-        let ch1 = open_out (*f ^*) "main.c" in
+        let ch1 = open_out (*f ^*) "device.c" in
         output_string ch1 (Manycore.convert_ast prog);
         close_out ch1;
         let ch2 = open_out "Makefile" in
         output_string ch2 (Manycore.generate_makefile prog);
         close_out ch2;
+        (* PBB: generate host program *)
+        let ch3 = open_out (*f ^*) "host.c" in
+        output_string ch3 (F1.generate_f1_host prog);
+        close_out ch3;
         print_endline (Manycore.convert_ast prog);
         print_endline (Manycore.generate_makefile prog);
         if !run_v then print_endline (Manycore.convert_ast prog);

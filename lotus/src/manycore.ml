@@ -101,6 +101,7 @@ and convert_codelist (cl : code list) : string =
     | [] -> "//empty code list\n"
     | (_,sl)::ct -> (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct)
 
+(* can read as foreach code section in program, add an int main() and foreach code listing? *)
 let convert_ast (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     convert_mem (prog) ^
@@ -122,3 +123,4 @@ let generate_makefile (prog : program) : string =
                         match m2 with
                             | None -> ""
                             | Some mem -> match mem with (_, _, (_, _)) -> ""
+
