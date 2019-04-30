@@ -77,7 +77,7 @@ let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : str
     | d::dt -> (
         (* for the head, get the name (i) type (t) and xDim (dim1) *)
         match d with
-        | (_, i, _, (dim1, _), (_, _), (_,_), (_,_,_), _) -> 
+        | (_, _, i, _, (dim1, _), (_, _), (_,_), (_,_,_), _) ->
                 let single_memcpy = f1_temp, i, convert_expr dim1 in
                 func(single_memcpy) ^
                 (* recursively call the function on the next element to process the whole array *)

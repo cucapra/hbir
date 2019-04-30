@@ -17,6 +17,10 @@ type mem_type =
     | Global
     | Local
 
+type mem_location =
+    | Host
+    | Device
+
 type sgmt =
     | Target
     | Config
@@ -91,8 +95,7 @@ type group_decl =
 
 type code = tile * stmt list
 
-(**)
-type data_map = mem_type * string * generic_type * (expr * expr option) * (string * string option)
+type data_map = mem_type * mem_location * string * generic_type * (expr * expr option) * (string * string option)
                 * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
 
 type data_maps = data_map list

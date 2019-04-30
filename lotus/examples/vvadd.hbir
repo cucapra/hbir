@@ -21,16 +21,19 @@ data{
     g_src0: int[dim] = block[target.g.x_max] {
         target.g[x];
         global;
+        host;
     };
 
     g_src1: int[dim] = block[target.g.x_max] {
         target.g[x];
         global;
+        host;
     };
 
     g_dest: int[dim] = block[target.g.x_max] {
         target.g[x];
         global;
+        device;
     };
 }
 
