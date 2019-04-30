@@ -153,19 +153,6 @@ let f1_main =
         "\t\t" ^ "return 0;\n" ^
         "\t" ^ "}\n\n"
 
-let f1_host_data_gen = "// host data gen here\n"
-
-(* just do for one tile for now, but will eventually take in list of tiles *)
-let f1_load_kernel (t : tile) : string = 
-        match t with
-        | (_, (x, y)) ->
-        "\t" ^ "uint8_t x = " ^ (convert_expr x) ^ ", y = " ^ (convert_expr y) ^ ";\n" ^
-        "\t" ^ "hb_mc_freeze(fd, " ^ string_of_tile(t) ^ ");\n" ^
-        "\t" ^ "hb_mc_set_tile_group_origin(fd, 0, 1, 0, 1);\n" ^
-        "\t" ^ "hb_mc_load_binary(fd, manycore_program, &x, &y, 1);\n\n"
-
-
-
 (* helpers for host and device symbol generation *)
 let f1_host_symbol(symbol : string) : string = 
         "h_" ^ symbol
@@ -176,6 +163,25 @@ let f1_device_symbol(symbol : string) : string =
 
 (* tile (x,y coords) -- symbol name -- array dimenstion *)
 type memcpy = tile * string * string
+
+(* generate arbitrary data on the host side *)
+let f1_host_data_gen(args : memcpy) : string = 
+        match args with 
+        | (_, symbol, dim) ->
+                let host_symbol = f1_host_symbol(symbol) in 
+                "\t" ^ "int *" ^ host_symbol ^ " = (int*)malloc(" ^ dim ^ " * sizeof(int));\n" ^
+                "\t" ^ "for(int i = 0; i < " ^ dim ^ "; i++) {\n" ^
+                "\t\t" ^ host_symbol ^ "[i] = i;\n" ^
+                "\t" ^ "}\n"
+
+(* just do for one tile for now, but will eventually take in list of tiles *)
+let f1_load_kernel (t : tile) : string = 
+        match t with
+        | (_, (x, y)) ->
+        "\t" ^ "uint8_t x = " ^ (convert_expr x) ^ ", y = " ^ (convert_expr y) ^ ";\n" ^
+        "\t" ^ "hb_mc_freeze(fd, " ^ string_of_tile(t) ^ ");\n" ^
+        "\t" ^ "hb_mc_set_tile_group_origin(fd, 0, 1, 0, 1);\n" ^
+        "\t" ^ "hb_mc_load_binary(fd, manycore_program, &x, &y, 1);\n\n"
 
 (* do the appropriate memcpys for each variable read in the kernel *)
 let f1_host_to_device(args : memcpy) : string = 
@@ -188,8 +194,8 @@ let f1_host_to_device(args : memcpy) : string =
                 "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_tile(t) ^ ", manycore_program, \"" ^ 
                 device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", hostToDevice);\n"
 
-(* uhhh... foreach element in dmap array create the appropriate memcpy *)
-let rec f1_convert_dmaps (dmaps : data_map list) : string =
+(* uhhh... foreach element in dmap array create the appropriate memcpy (or even host gen) *)
+let rec f1_convert_dmaps ((dmaps : data_map list), (func : memcpy -> string)) : string =
     match dmaps with
     | [] -> "//empty dmaps list\n"
     | d::dt -> (
@@ -197,12 +203,9 @@ let rec f1_convert_dmaps (dmaps : data_map list) : string =
         match d with
         | (_, i, _, (dim1, _), (_, _), (_,_), (_,_,_), _) -> 
                 let single_memcpy = f1_temp, i, convert_expr dim1 in
-                f1_host_to_device(single_memcpy) ^
+                func(single_memcpy) ^
                 (* recursively call the function on the next element to process the whole array *)
-                (f1_convert_dmaps dt))
-
-
-
+                (f1_convert_dmaps(dt, func)))
 
 
 let f1_run_and_wait (t : tile) : string = 
@@ -221,11 +224,14 @@ let generate_f1_host (prog : program) : string =
     f1_main ^    
     match prog with
     | (_, _, d, _) -> 
-        f1_host_data_gen ^
+        match d with
+        | (e, dmaps) -> 
+                "\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^
+                (f1_convert_dmaps(dmaps, f1_host_data_gen)) ^
         f1_load_kernel(f1_temp) ^ 
         (* for each data field should create a memcpy cmd*)
         match d with
-        | (_, dmaps) -> (f1_convert_dmaps dmaps) ^
+        | (_, dmaps) -> (f1_convert_dmaps(dmaps, f1_host_to_device)) ^
         (*f1_host_to_device(f1_temp, "A", 4) ^*)
         f1_run_and_wait(f1_temp) ^
         f1_device_to_host ^
