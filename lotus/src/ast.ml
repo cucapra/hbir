@@ -86,6 +86,8 @@ type group_decl =
 
 type code = tile * stmt list
 
+(* struct defined as name -- type -- (1d or 2d, optional) --  *)
+(* the asterisk is a field concatenation. note that the expression has already been parsed in parser.mly and we are further extracting fields  *)
 type data_map = string * generic_type * (expr * expr option) * (string * string option) * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
 
 type data_maps = data_map list
@@ -96,6 +98,7 @@ type target_decl = mem_decl * tile_decl
 type config_decl = group_decl list
 
 (* TODO: need to add mem list *)
+(* data sections *)
 type data_decl = expr * data_maps
 
 type code_decl = ((stmt list) option) * code list

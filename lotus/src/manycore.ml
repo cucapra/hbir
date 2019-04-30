@@ -97,6 +97,7 @@ and convert_codelist (cl : code list) : string =
     | [] -> "//empty code list\n"
     | (_,sl)::ct -> (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct)
 
+(* can read as foreach code section in program, add an int main() and foreach code listing? *)
 let convert_ast (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     convert_mem (prog) ^
@@ -118,3 +119,63 @@ let generate_makefile (prog : program) : string =
                         match m2 with
                             | None -> ""
                             | Some mem -> match mem with (_, _, (_, _)) -> ""
+
+
+(* PBB add a third function here to generate host.c. will punt on makefiles for now *)
+(* we want to base this off the data section so do (_,_,d,_). don't care about other 3 section and write data section to variable 'd' *)
+(* We need this to do three main things besides boilerplate *)
+(* 1) send kernel to tiles: hb_mc_load_binary(fd, manycore_program, &x, &y, 1); -- along with freezing and unfreezing the tiles*)
+(* 2) memcpy to read variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataRd", (void<star>)h_a, numBytes, hostToDevice); *)
+(* 3) memcpy from write variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataWr", (void<star>)h_b, numBytes, deviceToHost); *)
+
+(* define some boilerplate strings *)
+let f1_includes = "#include \"f1_helper.h\"\n"
+let f1_main = 
+        "int main(int argc, char *argv[]) {\n" ^
+        "\t" ^ "assert(argc == 2);\n" ^
+        "\t" ^ "char *manycore_program = argv[1];" ^
+        "\t" ^ "uint8_t fd;\n" ^
+        "\t" ^ "if (hb_mc_init_host(&fd) != HB_MC_SUCCESS) {\n" ^
+        "\t\t" ^ "printf(\"failed to initialize host.\\n\");\n" ^
+        "\t\t" ^ "return 0;\n" ^
+        "\t" ^ "}\n\n"
+
+let f1_host_data_gen = "// host data gen here\n"
+
+(* just do for one tile for now, but will eventually take in list of tiles *)
+let f1_load_kernel (t : tile) : string = 
+        match t with
+        | (_, (x, y)) ->
+        "\t" ^ "uint8_t x = " ^ (convert_expr x) ^ ", y = " ^ (convert_expr y) ^ ";\n" ^
+        "\t" ^ "hb_mc_freeze(fd, " ^ (convert_expr x) ^ ", " ^ (convert_expr y) ^ ");\n" ^
+        "\t" ^ "hb_mc_set_tile_group_origin(fd, 0, 1, 0, 1);\n" ^
+        "\t" ^ "hb_mc_load_binary(fd, manycore_program, &x, &y, 1);\n\n"
+
+let f1_host_to_device : string = "\t" ^ "hammaSymbolMemcpy(fd, x, y, manycore_program, \"d_a\", (void*)h_a, numBytes, hostToDevice);\n"
+
+let f1_run_and_wait (t : tile) : string = 
+        match t with
+        | (_, (x, y)) ->
+        "\t" ^ "hb_mc_unfreeze(fd, " ^ (convert_expr x) ^ ", " ^ (convert_expr y) ^ ");\n" ^
+        "\t" ^ "waitForKernel(fd);\n\n"
+
+let f1_device_to_host : string = "\t" ^ "hammaSymbolMemcpy(fd, x, y, manycore_program, \"d_b\", (void*)h_b, numBytes, deviceToHost);\n"
+
+let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
+
+(* need to cast int to tuple (which has an Int field of type int) *)
+let f1_temp : tile = "", (Int 0, Int 1)
+
+let generate_f1_host (prog : program) : string =
+    f1_includes ^
+    f1_main ^    
+    match prog with
+    | (_, _, d, _) -> 
+        f1_host_data_gen ^
+        f1_load_kernel(f1_temp) ^ 
+        f1_host_to_device ^
+        f1_run_and_wait(f1_temp) ^
+        f1_device_to_host ^
+        f1_cleanup_host ^
+        match d with
+        | (e, dmaps) -> "int dim = " ^ (convert_expr e) ^ ";\n" ^ (convert_dmaps dmaps)
