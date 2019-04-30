@@ -66,7 +66,7 @@ let prog =
         close_out ch2;
         (* PBB: generate host program *)
         let ch3 = open_out (*f ^*) "host.c" in
-        output_string ch3 (Manycore.generate_f1_host prog);
+        output_string ch3 (F1.generate_f1_host prog);
         close_out ch3;
         print_endline (Manycore.convert_ast prog);
         print_endline (Manycore.generate_makefile prog);
