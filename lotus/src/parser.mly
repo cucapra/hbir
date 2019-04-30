@@ -11,6 +11,8 @@ open Ast
 %token <string> WDECL
 %token TILE
 %token UNKNOWN
+%token GLOBAL
+%token LOCAL
 
 %token CONFIG
 %token GROUP
@@ -174,20 +176,26 @@ data:
     | DATA; LEFT_BRACE; DIM; EQ; num = expr; SEMICOLON; dl = dataMaps; RIGHT_BRACE
         { (num, dl) }
 
+memType:
+    | GLOBAL; SEMICOLON
+        { Global }
+    | LOCAL; SEMICOLON
+        { Local }
+
 dataMap:
     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num2 = expr; RIGHT_BRACKET;
-               LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; RIGHT_BRACE; SEMICOLON
-       {id, t, (num1, None), (id1, None), (num2, None), (s1, Some s2, None), id2}
+               LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; m = memType; RIGHT_BRACE; SEMICOLON
+       {m, id, t, (num1, None), (id1, None), (num2, None), (s1, Some s2, None), id2}
     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
-               LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; RIGHT_BRACE; SEMICOLON
-       {id, t, (num1, Some num2), (id1, None), (num3, None), (s1, Some s2, None), id2}
+               LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; m = memType; RIGHT_BRACE; SEMICOLON
+       {m, id, t, (num1, Some num2), (id1, None), (num3, None), (s1, Some s2, None), id2}
     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
                       LEFT_BRACKET; s2 = sgmts; DOT; id2 = ID; DOT; num4 = expr; RIGHT_BRACKET;
-               LEFT_BRACE; s3 = sgmts; DOT; id3 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; RIGHT_BRACE; SEMICOLON
-       {id, t, (num1, Some num2), (id1, Some id2), (num3, Some num4), (s1, Some s3, Some s2), id3}
+               LEFT_BRACE; s3 = sgmts; DOT; id3 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; m = memType; RIGHT_BRACE; SEMICOLON
+       {m, id, t, (num1, Some num2), (id1, Some id2), (num3, Some num4), (s1, Some s3, Some s2), id3}
 
 dataMaps:
     | d = dataMap

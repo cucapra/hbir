@@ -81,8 +81,12 @@ and convert_dmaps (dmaps : data_map list) : string =
     | [] -> "//empty dmaps list\n"
     | d::dt -> (
         match d with
-        | (i, t, (dim1, _), (_, _), (_,_), (_,_,_), _) -> (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim1) ^ "]" ^
-        " __attribute__ ((section (\".dram\")));"
+        | (m, i, t, (dim1, _), (_, _), (_,_), (_,_,_), _) ->
+            (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim1) ^ "]" ^ (
+            match m with
+            | Global -> " __attribute__ ((section (\".dram\")));"
+            | Local -> ";"
+            )
      ) ^ ("\n" ^ (convert_dmaps dt))
 
 (* TODO: Remove hard-coding *)

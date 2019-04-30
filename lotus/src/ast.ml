@@ -13,6 +13,10 @@ type generic_type =
     | IntTyp
     | FloatTyp
 
+type mem_type =
+    | Global
+    | Local
+
 type sgmt =
     | Target
     | Config
@@ -24,7 +28,8 @@ type literal =
     | YMax
 
 (* core *)
-(* Should wrap in binop *)
+(* TODO: Should wrap in binop *)
+(* TODO: Use Id elsewhere instead of string *)
 type expr =
     | Literal of literal
     | String of string
@@ -86,7 +91,9 @@ type group_decl =
 
 type code = tile * stmt list
 
-type data_map = string * generic_type * (expr * expr option) * (string * string option) * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
+(**)
+type data_map = mem_type * string * generic_type * (expr * expr option) * (string * string option)
+                * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
 
 type data_maps = data_map list
 
