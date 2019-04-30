@@ -35,9 +35,10 @@ rule token =
     | width as w    { WDECL (w) }
     | "tile"        { TILE }
     | "?"           { UNKNOWN }
+    | "global"      { GLOBAL }
+    | "local"       { LOCAL }
 
-    | "config"      {
-     CONFIG }
+    | "config"      { CONFIG }
     | "group"       { GROUP }
     | "temporal"    { TEMPORAL }
     | "block"       { BLOCK }

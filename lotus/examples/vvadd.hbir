@@ -20,14 +20,17 @@ data{
 
     g_src0: int[dim] = block[target.g.x_max] {
         target.g[x];
+        global;
     };
 
     g_src1: int[dim] = block[target.g.x_max] {
         target.g[x];
+        global;
     };
 
     g_dest: int[dim] = block[target.g.x_max] {
         target.g[x];
+        global;
     };
 }
 
