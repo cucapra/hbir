@@ -183,8 +183,8 @@ let f1_load_kernel (t : tile) : string =
         "\t" ^ "hb_mc_set_tile_group_origin(fd, 0, 1, 0, 1);\n" ^
         "\t" ^ "hb_mc_load_binary(fd, manycore_program, &x, &y, 1);\n\n"
 
-(* do the appropriate memcpys for each variable read in the kernel *)
-let f1_host_to_device(args : memcpy) : string = 
+(* do the appropriate memcpys for each variable read or write (determined by dir string) in the kernel *)
+let f1_memcpy (dir : string) (args : memcpy) : string =
         match args with
         | (t, symbol, dim) ->
                 (* TODO: assumes each data type is 4 bytes (32 bits) *)
@@ -192,10 +192,10 @@ let f1_host_to_device(args : memcpy) : string =
                 let host_symbol = f1_host_symbol(symbol) in
                 let device_symbol = f1_device_symbol(symbol) in
                 "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_tile(t) ^ ", manycore_program, \"" ^ 
-                device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", hostToDevice);\n"
+                device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", " ^ dir ^ ");\n"
 
 (* uhhh... foreach element in dmap array create the appropriate memcpy (or even host gen) *)
-let rec f1_convert_dmaps ((dmaps : data_map list), (func : memcpy -> string)) : string =
+let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : string =
     match dmaps with
     | [] -> "//empty dmaps list\n"
     | d::dt -> (
@@ -205,14 +205,14 @@ let rec f1_convert_dmaps ((dmaps : data_map list), (func : memcpy -> string)) : 
                 let single_memcpy = f1_temp, i, convert_expr dim1 in
                 func(single_memcpy) ^
                 (* recursively call the function on the next element to process the whole array *)
-                (f1_convert_dmaps(dt, func)))
+                (f1_convert_dmaps dt func))
 
 
 let f1_run_and_wait (t : tile) : string = 
         "\t" ^ "hb_mc_unfreeze(fd, " ^ string_of_tile(t) ^ ");\n" ^
         "\t" ^ "waitForKernel(fd);\n\n"
 
-let f1_device_to_host : string = "\t" ^ "hammaSymbolMemcpy(fd, x, y, manycore_program, \"d_b\", (void*)h_b, numBytes, deviceToHost);\n"
+
 
 let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
 
@@ -227,13 +227,18 @@ let generate_f1_host (prog : program) : string =
         match d with
         | (e, dmaps) -> 
                 "\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^
-                (f1_convert_dmaps(dmaps, f1_host_data_gen)) ^
+                (f1_convert_dmaps dmaps f1_host_data_gen) ^
         f1_load_kernel(f1_temp) ^ 
         (* for each data field should create a memcpy cmd*)
         match d with
-        | (_, dmaps) -> (f1_convert_dmaps(dmaps, f1_host_to_device)) ^
+        | (_, dmaps) -> 
+                let memcpy_to = (f1_memcpy "hostToDevice") in
+                (f1_convert_dmaps dmaps memcpy_to) ^
         (*f1_host_to_device(f1_temp, "A", 4) ^*)
         f1_run_and_wait(f1_temp) ^
-        f1_device_to_host ^
+        match d with
+        | (_, dmaps) -> 
+                let memcpy_from = (f1_memcpy "deviceToHost") in
+                (f1_convert_dmaps dmaps memcpy_from) ^
         f1_cleanup_host
         
