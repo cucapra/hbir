@@ -216,6 +216,95 @@ let f1_run_and_wait (t : tile) : string =
 
 let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
 
+(* 
+   code has codelist which in turn has statement lists, each statement is something like Assign(str1, str2) 
+   keep a list of symbol names we have seen and base of that
+
+   TODO more than just true false, really ternary (Start, Mid, End)
+   TODO figure out if we can reliably infer these things. What if ppl want to write to memcpy buffer?
+   Probably want to actually look at real deps rather just if its written
+*)
+
+(* statement to symbols *)
+let rec symbol_written_in_stmt(s : stmt) : string list =
+        match s with
+        | Decl ( _, _ )                 -> []
+        | Assign ( str1, _ )            -> [str1]
+        | MemAssign ( ( str1, _ ) , _)  -> [str1]
+        | DeclAssign ( _ , str2, _ )    -> [str2]
+        (* BEGIN WRONG, need nested symbol functions like 'convert' has *)
+        | If (_, _, _)                  -> []
+        | While (_,_)                   -> []
+        | For ((_,_,(_,_)),sl)          -> symbols_stmtlist sl
+        (* END WRONG *)
+        | Break _                       -> []
+        | Print _                       -> []
+        | BsgFinish                     -> []
+
+(* find all of the symbols in a statement list *)
+and symbols_stmtlist(sl : stmt list) : string list =
+        let rec sym_rec_stmtlist((sl : stmt list), (symbols : string list)) =
+                match sl with
+                | [] -> symbols
+                | s::st -> 
+                        let new_symbols = symbol_written_in_stmt(s) in
+                        let () = List.iter(fun s -> print_endline(s)) new_symbols in
+                        let new_sym_list = new_symbols @ symbols in
+                        sym_rec_stmtlist(st, new_sym_list)
+        in
+        sym_rec_stmtlist(sl, [])
+
+(* WHAT is a code list *)
+let symbols_codelist(cl : code list) : string list = 
+        let rec sym_rec_codelist((cl : code list), (symbols : string list)) =
+                match cl with
+                | [] -> symbols
+                | (_,sl)::ct ->
+                        let symbols_in_stmtlist = symbols_stmtlist(sl) in
+                        (* append the new list with the old *)
+                        let new_symbols = symbols_in_stmtlist @ symbols in
+                        sym_rec_codelist(ct, new_symbols)
+        in
+        sym_rec_codelist(cl, [])
+
+(* for now check all written symbols for the one specified *)
+let f1_check_def_use((tested : string), (c : code_decl)) : bool =
+        (*let symbolsWritten = [] in
+        let symbolsRead    = [] in*)
+        let () = print_endline("check def use") in
+        match c with 
+        | (None, _) -> false
+        | (Some _, cl) ->
+                let written_symbols = symbols_codelist(cl) in
+                let ret = List.mem tested written_symbols in
+                not ret
+
+
+
+(* https://stackoverflow.com/questions/26484498/ocaml-splitting-list-into-two-separate-greater-or-lesser-than-given-number *)
+
+(* split data entry list into two lists, one's that need host to device memcpy and others device to host*)
+let f1_infer_memcpy_dir ((dmaps : data_map list), (c: code_decl)) =
+        let rec split((dmaps : data_map list), (dmaps_to : data_map list), (dmaps_from : data_map list)) =
+                match dmaps with
+                (* when your initial list is empty, you have to return the accumulators *)
+                | [] -> (dmaps_to, dmaps_from)
+                | d::dt ->
+                        (* break open dmap to get the name *)
+                        match d with
+                        | (_, i, _, (_, _), (_, _), (_,_), (_,_,_), _) -> 
+                        if f1_check_def_use(i, c) then 
+                                (*add to memcpy_to list if no deps *)
+                                split ( dt, d::dmaps_to, dmaps_from )   
+                        else
+                                (*add to memcpy_to list if no use *)
+                                split( dt, dmaps_to, d::dmaps_from )
+                        
+        in 
+        (* start recursion *)
+        split ( dmaps, [], [] )
+        
+        
 
 
 (* emits the host code *)
@@ -223,22 +312,25 @@ let generate_f1_host (prog : program) : string =
     f1_includes ^
     f1_main ^    
     match prog with
-    | (_, _, d, _) -> 
+    | (_, _, d, c) -> (
         match d with
-        | (e, dmaps) -> 
+        | (e, dmaps) ->
+                let (memcpy_to_dmaps, _) = f1_infer_memcpy_dir(dmaps, c) in
                 "\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^
-                (f1_convert_dmaps dmaps f1_host_data_gen) ^
+                (f1_convert_dmaps memcpy_to_dmaps f1_host_data_gen) ^
         f1_load_kernel(f1_temp) ^ 
         (* for each data field should create a memcpy cmd*)
         match d with
-        | (_, dmaps) -> 
+        | (_, dmaps) ->
+                let (memcpy_to_dmaps, _) = f1_infer_memcpy_dir(dmaps, c) in
                 let memcpy_to = (f1_memcpy "hostToDevice") in
-                (f1_convert_dmaps dmaps memcpy_to) ^
+                (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
         (*f1_host_to_device(f1_temp, "A", 4) ^*)
         f1_run_and_wait(f1_temp) ^
         match d with
         | (_, dmaps) -> 
+                let (_, memcpy_from_dmaps) = f1_infer_memcpy_dir(dmaps, c) in
                 let memcpy_from = (f1_memcpy "deviceToHost") in
-                (f1_convert_dmaps dmaps memcpy_from) ^
+                (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
         f1_cleanup_host
-        
+    )
