@@ -105,7 +105,7 @@ and convert_target (prog : program) : string =
         match t with
         | (_, (_, (_, _), _)) ->
             "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" ^
-            "int csize = " ^ memsize ^ "/num_tiles;\n"
+            "volatile int csize = " ^ memsize ^ "/(bsg_tiles_X * bsg_tiles_Y);\n"
 
 (* TODO: Remove hard-coding *)
 and convert_mem (prog : program) : string =

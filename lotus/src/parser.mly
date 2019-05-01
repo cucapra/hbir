@@ -16,6 +16,7 @@ open Ast
 %token HOST
 %token DEVICE
 %token CHUNK
+%token VOLATILE
 
 %token CONFIG
 %token GROUP
