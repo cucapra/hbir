@@ -89,6 +89,11 @@ let f1_run_and_wait (t : tile) : string =
         "\t" ^ "waitForKernel(fd);\n\n"
 
 
+let f1_result_buffers (args : memcpy) : string = 
+        match args with 
+        | (_, symbol, dim) ->
+                let host_symbol = f1_host_symbol(symbol) in 
+                "\t" ^ "int *" ^ host_symbol ^ " = (int*)malloc(" ^ dim ^ " * sizeof(int));\n"
 
 let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
 
@@ -132,6 +137,7 @@ let generate_f1_host (prog : program) : string =
                 (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
                 f1_run_and_wait(f1_temp) ^
 
+                (f1_convert_dmaps memcpy_from_dmaps f1_result_buffers) ^ 
                 let memcpy_from = (f1_memcpy "deviceToHost") in
                 (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
                 f1_cleanup_host
