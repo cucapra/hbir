@@ -21,18 +21,21 @@ data{
     src0: int[dim] = block[target.g.x_max] {
         target.g[x];
         local;
+        chunked;
         host;
     };
 
     src1: int[dim] = block[target.g.x_max] {
         target.g[x];
         local;
+        chunked;
         host;
     };
 
     dest: int[dim] = block[target.g.x_max] {
         target.g[x];
         local;
+        chunked;
         device;
     };
 }
