@@ -40,6 +40,7 @@ rule token =
     | "host"        { HOST }
     | "device"      { DEVICE }
     | "chunked"     { CHUNK }
+    | "volatile"    { VOLATILE }
 
     | "config"      { CONFIG }
     | "group"       { GROUP }

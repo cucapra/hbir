@@ -89,8 +89,33 @@ let f1_run_and_wait (t : tile) : string =
         "\t" ^ "waitForKernel(fd);\n\n"
 
 
+let f1_result_buffers (args : memcpy) : string = 
+        match args with 
+        | (_, symbol, dim) ->
+                let host_symbol = f1_host_symbol(symbol) in 
+                "\t" ^ "int *" ^ host_symbol ^ " = (int*)malloc(" ^ dim ^ " * sizeof(int));\n"
 
 let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
+
+
+(* https://stackoverflow.com/questions/26484498/ocaml-splitting-list-into-two-separate-greater-or-lesser-than-given-number *)
+(* split data entry list into two lists, one's that need host to device memcpy and others device to host  *)
+let f1_split_dmaps (dmaps : data_map list) =
+        let rec split((dmaps : data_map list), (dmaps_to : data_map list), (dmaps_from : data_map list)) =
+                match dmaps with
+                (* when your initial list is empty, you have to return the accumulators *)
+                | [] -> (dmaps_to, dmaps_from)
+                | d::dt ->
+                        (* break open dmap to get the mem send direction *)
+                        match d with
+                        | (_, dir, _, _, (_, _), (_, _), (_,_), (_,_,_), _) -> 
+                                (* append dmap entry to either memcpy_to or memcpy_from dmaps *)
+                                match dir with
+                                | Host -> split ( dt, d::dmaps_to, dmaps_from ) 
+                                | Device -> split( dt, dmaps_to, d::dmaps_from )
+        in 
+        (* start recursion *)
+        split ( dmaps, [], [] )
 
 
 (* emits the host code *)
@@ -101,23 +126,22 @@ let generate_f1_host (prog : program) : string =
     | (_, _, d, _) -> (
         match d with
         | (e, dmaps) ->
+                (* get dmaps intended to be send in different directions *)
+                let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
                 "\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^
-                (f1_convert_dmaps dmaps f1_host_data_gen) ^
-        f1_load_kernel(f1_temp) ^ 
-        (* for each data field should create a memcpy cmd*)
-        match d with
-        | (_, dmaps) ->
-                let memcpy_to = (f1_memcpy "hostToDevice") in
-                (f1_convert_dmaps dmaps memcpy_to) ^
-        (*f1_host_to_device(f1_temp, "A", 4) ^*)
-        f1_run_and_wait(f1_temp) ^
-        match d with
-        | (_, dmaps) ->
-                let memcpy_from = (f1_memcpy "deviceToHost") in
-                (f1_convert_dmaps dmaps memcpy_from) ^
-        f1_cleanup_host
-    )
+                (f1_convert_dmaps memcpy_to_dmaps f1_host_data_gen) ^
+                f1_load_kernel(f1_temp) ^ 
+                (* for each data field should create a memcpy cmd*)
 
+                let memcpy_to = (f1_memcpy "hostToDevice") in
+                (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
+                f1_run_and_wait(f1_temp) ^
+
+                (f1_convert_dmaps memcpy_from_dmaps f1_result_buffers) ^ 
+                let memcpy_from = (f1_memcpy "deviceToHost") in
+                (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
+                f1_cleanup_host
+    )
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)
 let generate_f1_device (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^

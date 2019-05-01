@@ -16,6 +16,7 @@ open Ast
 %token HOST
 %token DEVICE
 %token CHUNK
+%token VOLATILE
 
 %token CONFIG
 %token GROUP
@@ -299,6 +300,10 @@ expr:
         { Literal (XMax) }
     | Y_MAX
         { Literal (YMax) }
+    | X
+        { X }
+    | Y
+        { Y }
     | i = INT_LITERAL
         { Int i }
     | s = STR
