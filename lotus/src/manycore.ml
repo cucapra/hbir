@@ -96,7 +96,7 @@ and convert_mem (prog : program) : string =
     match prog with
     | (_, _, d, _) ->
         match d with
-        | (e, dmaps) -> "int dim = " ^ (convert_expr e) ^ ";\n" ^ (convert_dmaps dmaps)
+        | (e, dmaps) -> "#define dim " ^ (convert_expr e) ^ "\n" ^ (convert_dmaps dmaps)
 
 and convert_codelist (cl : code list) : string =
     match cl with
