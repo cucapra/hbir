@@ -299,6 +299,10 @@ expr:
         { Literal (XMax) }
     | Y_MAX
         { Literal (YMax) }
+    | X
+        { X }
+    | Y
+        { Y }
     | i = INT_LITERAL
         { Int i }
     | s = STR

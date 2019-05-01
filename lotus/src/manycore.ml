@@ -22,7 +22,10 @@ let convert_generic (g : generic_type) : string =
 let rec convert_expr (e : expr) : string =
     match e with
     (*TODO: Need to fix this *)
-    | Literal _ -> "literal"
+    | Literal l ->
+        (match l with
+        | XMax -> "x_max"
+        | YMax -> "y_max")
     | String str -> str
     | Int i -> string_of_int i
     | X -> "x"
@@ -55,7 +58,9 @@ and convert_stmt (s : stmt) : string =
     | Decl (str1, str2) -> str1 ^ " " ^ str2 ^ ";"
     | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
     | MemAssign ((str1, expr1), expr2) -> str1 ^ "[" ^ (convert_expr expr1) ^ "]" ^ ("= ") ^ (convert_expr expr2) ^ ";"
-    | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
+    | DeclAssign (str1, str2, expr) ->
+        if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
+        else str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
     | If (i,il,s) -> (
         match s with
         | None -> ((convert_ib i) ^ (convert_iblist il))
@@ -91,6 +96,17 @@ and convert_dmaps (dmaps : data_map list) : string =
             )
      ) ^ ("\n" ^ (convert_dmaps dt))
 
+and convert_target (prog : program) : string =
+    match prog with
+    | (t, _, d, _) ->
+        let memsize = match d with
+                      | (e, _) -> (convert_expr e) in
+        (*TODO: Hard-code chunk size for now*)
+        match t with
+        | (_, (_, (_, _), _)) ->
+            "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" ^
+            "int csize = " ^ memsize ^ "/num_tiles;\n"
+
 (* TODO: Remove hard-coding *)
 and convert_mem (prog : program) : string =
     match prog with
@@ -105,11 +121,13 @@ and convert_codelist (cl : code list) : string =
         match t with
         | (_, (e1, e2)) ->
          (if (e1 == X && e2 == Y) then
-            (*TODO: replace with function call, and grab code and use as function before-hand*)
-            (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct)
+            ((*TODO: replace with function call, and grab code and use as function before-hand, hard-code last tile handling chunk*)
+            "if(tile_id == num_tiles-1){\n" ^
+            "csize = csize + ( dim % num_tiles );\n}\n" ^
+            (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct))
          else
-            convert_codelist(ct) ^ "if(tile_id == bsg_x_y_to_id(" ^ (convert_expr e1) ^ ", " ^ (convert_expr e2) ^ "){\n" ^
-            (convert_stmtlist sl)  ^ "}\n"
+            (convert_codelist(ct) ^ "if(tile_id == bsg_x_y_to_id(" ^ (convert_expr e1) ^ ", " ^ (convert_expr e2) ^ ")){\n" ^
+            (convert_stmtlist sl)  ^ "}\n")
          )
 
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)
@@ -117,11 +135,14 @@ let convert_ast (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     convert_mem (prog) ^
     match prog with
-    | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^
+    | (_, _, _, c) ->
         match c with
         | (None, cl) -> (convert_codelist cl) ^ "\n}"
         | (Some sl, cl) ->
-            (convert_stmtlist sl) ^ (convert_codelist cl) ^ "\n}"
+            (convert_stmtlist sl) ^
+            (convert_target prog) ^
+            "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^
+            (convert_codelist cl) ^ "bsg_wait_while(1);\n" ^ "\n}"
 
 let generate_makefile (prog : program) : string =
     match prog with
