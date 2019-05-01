@@ -38,6 +38,8 @@ type expr =
     | Literal of literal
     | String of string
     | Int of int
+    | X
+    | Y
     | Bool of bool
     | Id of string
     | Mem of string * expr

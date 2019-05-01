@@ -11,6 +11,8 @@ let rec convert_expr (e : expr) : string =
     | String str -> str
     | Int i -> string_of_int i
     | Id i -> i
+    | X -> "x"
+    | Y -> "y"
     | Mem (i, e) -> i ^ "[" ^ (convert_expr e) ^ "]"
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
     | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"

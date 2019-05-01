@@ -37,8 +37,9 @@ rule token =
     | "?"           { UNKNOWN }
     | "global"      { GLOBAL }
     | "local"       { LOCAL }
-    | "host"      { HOST }
-    | "device"       { DEVICE }
+    | "host"        { HOST }
+    | "device"      { DEVICE }
+    | "chunked"     { CHUNK }
 
     | "config"      { CONFIG }
     | "group"       { GROUP }

@@ -25,6 +25,8 @@ let rec convert_expr (e : expr) : string =
     | Literal _ -> "literal"
     | String str -> str
     | Int i -> string_of_int i
+    | X -> "x"
+    | Y -> "y"
     | Id i -> i
     | Mem (i, e) -> i ^ "[" ^ (convert_expr e) ^ "]"
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
@@ -72,7 +74,7 @@ and convert_ib (i : if_block) : string =
 
 and convert_stmtlist (sl : stmt list) : string =
     match sl with
-    | [] -> "//empty stmt list\n"
+    | [] -> ""
     | s::st -> ((convert_stmt s)  ^ "\n" ^ (convert_stmtlist st))
 
 (* TODO: Add local tile memory *)
@@ -98,15 +100,23 @@ and convert_mem (prog : program) : string =
 
 and convert_codelist (cl : code list) : string =
     match cl with
-    | [] -> "//empty code list\n"
-    | (_,sl)::ct -> (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct)
+    | [] -> ""
+    | (t, sl)::ct ->
+        match t with
+        | (_, (e1, e2)) ->
+         (if (e1 == X && e2 == Y) then
+            (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct)
+         else
+            "if(tile_id == bsg_x_y_to_id(" ^ (convert_expr e1) ^ ", " ^ (convert_expr e2) ^ "){\n" ^
+            (convert_stmtlist sl)  ^ "}\n" ^ convert_codelist(ct)
+         )
 
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)
 let convert_ast (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     convert_mem (prog) ^
     match prog with
-    | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^
+    | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^
         match c with
         | (None, cl) -> (convert_codelist cl) ^ "\n}"
         | (Some sl, cl) ->
