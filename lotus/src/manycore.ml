@@ -105,10 +105,11 @@ and convert_codelist (cl : code list) : string =
         match t with
         | (_, (e1, e2)) ->
          (if (e1 == X && e2 == Y) then
+            (*TODO: replace with function call, and grab code and use as function before-hand*)
             (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct)
          else
-            "if(tile_id == bsg_x_y_to_id(" ^ (convert_expr e1) ^ ", " ^ (convert_expr e2) ^ "){\n" ^
-            (convert_stmtlist sl)  ^ "}\n" ^ convert_codelist(ct)
+            convert_codelist(ct) ^ "if(tile_id == bsg_x_y_to_id(" ^ (convert_expr e1) ^ ", " ^ (convert_expr e2) ^ "){\n" ^
+            (convert_stmtlist sl)  ^ "}\n"
          )
 
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)
