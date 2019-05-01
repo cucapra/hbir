@@ -1,0 +1,47 @@
+//This code maps to brg_vvadd in the bsg_manycore repository
+
+target{
+    memory g[4]{
+        size 8G;
+        width 8B;
+    };
+
+    tile t[1][1];
+}
+
+config{
+    group tg[1][1] {
+        tile target.t[x][y];
+    };
+}
+
+data{
+    const dim = 160;
+
+    src0: int[dim] = block[target.g.x_max] {
+        target.g[x];
+        local;
+        host;
+    };
+
+    src1: int[dim] = block[target.g.x_max] {
+        target.g[x];
+        local;
+        host;
+    };
+
+    dest: int[dim] = block[target.g.x_max] {
+        target.g[x];
+        local;
+        device;
+    };
+}
+
+code{
+    config.tg[x][y]{
+        for(int i = 0; i<dim; i=i+1){
+            dest[i] = src0[i] + src1[i];
+        }
+        bsg_finish();
+    }
+}
