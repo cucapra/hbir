@@ -117,3 +117,26 @@ let generate_f1_host (prog : program) : string =
                 (f1_convert_dmaps dmaps memcpy_from) ^
         f1_cleanup_host
     )
+
+(* can read as foreach code section in program, add an int main() and foreach code listing? *)
+let generate_f1_device (prog : program) : string =
+    "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
+    convert_mem (prog) ^
+    match prog with
+    | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^
+        match c with
+        | (None, cl) -> (convert_codelist cl) ^ "\n}"
+        | (Some sl, cl) ->
+            (convert_stmtlist sl) ^ (convert_codelist cl) ^ "\n}"
+
+let generate_f1_makefile (prog : program) : string =
+    match prog with
+    | (target, _, _, _) ->
+        match target with
+                | (m1, t) -> match m1 with (_, _, (_, _)) -> "" ^
+                    match t with (_, (e2, e3), m2) -> "bsg_tiles_X = " ^ (convert_expr e2) ^
+                                                       "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
+                                                       makefile ^
+                        match m2 with
+                            | None -> ""
+                            | Some mem -> match mem with (_, _, (_, _)) -> ""

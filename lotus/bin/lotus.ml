@@ -13,6 +13,32 @@ let set_gcc () : unit = run_gcc := true
 
 let run_bsg : bool ref = ref false
 let set_bsg () : unit = run_bsg := true
+let write_bsg (prog : program) : unit =
+    let ch1 = open_out (*f ^*) "main.c" in
+    output_string ch1 (Manycore.convert_ast prog);
+    close_out ch1;
+    let ch2 = open_out "Makefile" in
+    output_string ch2 (Manycore.generate_makefile prog);
+    close_out ch2;
+    print_endline (Manycore.convert_ast prog);
+    print_endline (Manycore.generate_makefile prog)
+
+let run_f1 : bool ref = ref false
+let set_f1 () : unit = run_f1 := true
+let write_f1 (prog : program) : unit =
+    let ch1 = open_out (*f ^*) "device.c" in
+    output_string ch1 (F1.generate_f1_device prog);
+    close_out ch1;
+    let ch2 = open_out "Makefile" in
+    output_string ch2 (F1.generate_f1_makefile prog);
+    close_out ch2;
+    (* PBB: generate host program *)
+    let ch3 = open_out (*f ^*) "host.c" in
+    output_string ch3 (F1.generate_f1_host prog);
+    close_out ch3;
+    print_endline (Manycore.convert_ast prog);
+    print_endline (Manycore.generate_makefile prog)
+    (* if !run_v then print_endline (Manycore.convert_ast prog); *)
 
 let run_pp : bool ref = ref false
 let set_pp () : unit = run_pp := true
@@ -27,7 +53,9 @@ let spec : (Arg.key * Arg.spec * Arg.doc) list =
      ("-gcc", Arg.Set run_gcc,
     "Generates code that can be compiled by gcc");
     ("-bsg", Arg.Set run_bsg,
-    "Generates code and a Makefile that can be run on the Manycore RTL sim or F1 instance");
+    "Generates code and a Makefile that can be run on the Manycore RTL sim");
+    ("-f1", Arg.Set run_f1,
+        "Generates code and a Makefile that can be run on the F1 instance");
     ("-v", Arg.Set run_v,
     "Prints contents in emitted files")
     ]
@@ -57,22 +85,10 @@ let prog =
         close_in ch;
     if !run_pp then print_endline (Ops.pretty_program prog);
     (* TODO: Should create a new directory with main.c and Makefile to mirror bsg_manycore programsg *)
-    if !run_bsg then
-        let ch1 = open_out (*f ^*) "device.c" in
-        output_string ch1 (Manycore.convert_ast prog);
-        close_out ch1;
-        let ch2 = open_out "Makefile" in
-        output_string ch2 (Manycore.generate_makefile prog);
-        close_out ch2;
-        (* PBB: generate host program *)
-        let ch3 = open_out (*f ^*) "host.c" in
-        output_string ch3 (F1.generate_f1_host prog);
-        close_out ch3;
-        print_endline (Manycore.convert_ast prog);
-        print_endline (Manycore.generate_makefile prog);
-        if !run_v then print_endline (Manycore.convert_ast prog);
+    if !run_bsg then write_bsg prog;
+    if !run_f1 then write_f1 prog;
     if !run_gcc then
         let ch = open_out (*f ^*) "main.c" in
         output_string ch (Simplec.convert_ast prog);
         close_out ch;
-        if !run_v then print_endline (Simplec.convert_ast prog);
+        (* if !run_v then print_endline (Simplec.convert_ast prog); *)
