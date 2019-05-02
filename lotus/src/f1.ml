@@ -8,8 +8,15 @@ open Manycore
 (* 2) memcpy to read variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataRd", (void<star>)h_a, numBytes, hostToDevice); *)
 (* 3) memcpy from write variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataWr", (void<star>)h_b, numBytes, deviceToHost); *)
 
-(* need to cast int to tuple (which has an Int field of type int) *)
 let f1_temp : tile = "", (Int 0, Int 1)
+
+type bounds = expr * expr * expr * expr
+
+let string_of_bounds(b : bounds) : string =
+        match b with
+        | (x1, y1, x2, y2) ->
+        (convert_expr x1) ^ ", " ^ (convert_expr y1) ^ ", " ^ 
+        (convert_expr x2) ^ ", " ^ (convert_expr y2)
 
 (* helper to convert tile coords to a string *)
 let string_of_tile(t: tile) : string = 
@@ -51,23 +58,20 @@ let f1_host_data_gen(args : memcpy) : string =
                 "\t" ^ "}\n"
 
 (* just do for one tile for now, but will eventually take in list of tiles *)
-let f1_load_kernel (t : tile) : string = 
-        match t with
-        | (_, (x, y)) ->
-        "\t" ^ "uint8_t x = " ^ (convert_expr x) ^ ", y = " ^ (convert_expr y) ^ ";\n" ^
-        "\t" ^ "hb_mc_freeze(fd, " ^ string_of_tile(t) ^ ");\n" ^
-        "\t" ^ "hb_mc_set_tile_group_origin(fd, 0, 1, 0, 1);\n" ^
-        "\t" ^ "hb_mc_load_binary(fd, manycore_program, &x, &y, 1);\n\n"
+let f1_load_kernel (b : bounds) : string = 
+        "\t" ^ "hammaLoadMultiple(fd, manycore_program, " ^ (string_of_bounds b) ^ ");\n"
+
 
 (* do the appropriate memcpys for each variable read or write (determined by dir string) in the kernel *)
-let f1_memcpy (dir : string) (args : memcpy) : string =
+(* TODO probably don't want to give bounds *)
+let f1_memcpy (dir : string) (b : bounds) (args : memcpy) : string =
         match args with
-        | (t, symbol, dim) ->
+        | (_, symbol, dim) ->
                 (* TODO: assumes each data type is 4 bytes (32 bits) *)
                 let num_bytes = dim ^ " * sizeof(int)" in
                 let host_symbol = f1_host_symbol(symbol) in
                 let device_symbol = f1_device_symbol(symbol) in
-                "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_tile(t) ^ ", manycore_program, \"" ^ 
+                "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_bounds(b) ^ ",  manycore_program, \"" ^ 
                 device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", " ^ dir ^ ");\n"
 
 (* uhhh... foreach element in dmap array create the appropriate memcpy (or even host gen) *)
@@ -84,9 +88,8 @@ let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : str
                 (f1_convert_dmaps dt func))
 
 
-let f1_run_and_wait (t : tile) : string = 
-        "\t" ^ "hb_mc_unfreeze(fd, " ^ string_of_tile(t) ^ ");\n" ^
-        "\t" ^ "waitForKernel(fd);\n\n"
+let f1_run_and_wait (b : bounds): string = 
+        "\t" ^ "hammaRunMultiple(fd, " ^ string_of_bounds(b) ^ ");\n\n"
 
 
 let f1_result_buffers (args : memcpy) : string = 
@@ -117,28 +120,55 @@ let f1_split_dmaps (dmaps : data_map list) =
         (* start recursion *)
         split ( dmaps, [], [] )
 
+(* figure out how many tiles should be allocated for a particular kernel *)
+let f1_get_num_tiles ( c : config_decl ) : bounds =
+        match c with
+        | (g) ->
+                let rec traverse_configs (( groups : group_decl list ), ( bnds : bounds list )) =
+                        match groups with
+                        | [] -> bnds
+                        | b::bt ->
+                                match b with 
+                                (* TODO recursion into the group, not supported for now *)
+                                | NestedGroup (_, (_ , _) , _) -> bnds
+                                (* extract dimension of the group *)
+                                | GroupStmt (_, (w , h) , _) ->
+                                        (* add configs to the list *)
+                                        let new_bounds = (Int 0, Int 1, w, Plus(h, Int 1)) in
+                                        let new_blist = new_bounds::bnds in
+                                        (* TODO recursion for next config in the list *)
+                                        traverse_configs(bt, new_blist)
+                (* get the dimensions as a string for now *)
+                in
+                let bnds = traverse_configs(g, []) in
+                (* TODO just return the first one *)
+                match bnds with
+                | [] -> (Int 0, Int 0, Int 0, Int 0)
+                | b::_ ->
+                      b  
 
 (* emits the host code *)
 let generate_f1_host (prog : program) : string =
     f1_includes ^
     f1_main ^    
     match prog with
-    | (_, _, d, _) -> (
+    | (_, c, d, _) -> (
+        let tile_bounds = f1_get_num_tiles(c) in
         match d with
         | (e, dmaps) ->
                 (* get dmaps intended to be send in different directions *)
                 let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
                 "\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^
                 (f1_convert_dmaps memcpy_to_dmaps f1_host_data_gen) ^
-                f1_load_kernel(f1_temp) ^ 
+                f1_load_kernel(tile_bounds) ^ 
                 (* for each data field should create a memcpy cmd*)
 
-                let memcpy_to = (f1_memcpy "hostToDevice") in
+                let memcpy_to = (f1_memcpy "hostToDevice" tile_bounds) in
                 (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
-                f1_run_and_wait(f1_temp) ^
+                f1_run_and_wait(tile_bounds) ^
 
                 (f1_convert_dmaps memcpy_from_dmaps f1_result_buffers) ^ 
-                let memcpy_from = (f1_memcpy "deviceToHost") in
+                let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
                 (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
                 f1_cleanup_host
     )
