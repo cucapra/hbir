@@ -8,7 +8,7 @@ open Manycore
 (* 2) memcpy to read variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataRd", (void<star>)h_a, numBytes, hostToDevice); *)
 (* 3) memcpy from write variables: hammaSymbolMemcpy(fd, x, y, manycore_program, "tileDataWr", (void<star>)h_b, numBytes, deviceToHost); *)
 
-let f1_temp : tile = "", (Int 0, Int 1)
+(*let f1_temp : tile = "", (Int 0, Int 1)*)
 
 type bounds = expr * expr * expr * expr
 
@@ -44,13 +44,13 @@ let f1_device_symbol(symbol : string) : string =
         (*"d_" ^ symbol*)
         symbol
 
-(* tile (x,y coords) -- symbol name -- array dimenstion *)
-type memcpy = tile * string * string
+(* bounds, but really want to be a *POLICY* -- symbol name -- array dimenstion *)
+type memcpy = (*bounds * *)string * string
 
 (* generate arbitrary data on the host side *)
 let f1_host_data_gen(args : memcpy) : string = 
         match args with 
-        | (_, symbol, dim) ->
+        | (symbol, dim) ->
                 let host_symbol = f1_host_symbol(symbol) in 
                 "\t" ^ "int *" ^ host_symbol ^ " = (int*)malloc(" ^ dim ^ " * sizeof(int));\n" ^
                 "\t" ^ "for(int i = 0; i < " ^ dim ^ "; i++) {\n" ^
@@ -61,18 +61,34 @@ let f1_host_data_gen(args : memcpy) : string =
 let f1_load_kernel (b : bounds) : string = 
         "\t" ^ "hammaLoadMultiple(fd, manycore_program, " ^ (string_of_bounds b) ^ ");\n"
 
+(* call an operation for each tile in the bounds *)
+let func_within_bounds (func : tile -> string) (b : bounds) : string =
+        match b with
+        | (x1, y1, x2, y2) ->
+                let x : expr = String "x" in
+                let y : expr = String "y" in
+                let t : tile = ("", (x, y)) in 
+                "\t"     ^ "for (int y = " ^ ( convert_expr y1 ) ^ "; y < " ^ ( convert_expr y2 ) ^ "; y++) {\n" ^
+                "\t\t"   ^ "for (int x = " ^ ( convert_expr x1 ) ^ "; x < " ^ ( convert_expr x2 ) ^ "; x++) {\n" ^
+                "\t\t"   ^ func(t) ^
+                "\t\t"   ^ "}\n" ^
+                "\t"     ^ "}\n"
 
 (* do the appropriate memcpys for each variable read or write (determined by dir string) in the kernel *)
-(* TODO probably don't want to give bounds *)
+(* TODO want to give policy as well as bounds *)
 let f1_memcpy (dir : string) (b : bounds) (args : memcpy) : string =
         match args with
-        | (_, symbol, dim) ->
+        | (symbol, dim) ->
                 (* TODO: assumes each data type is 4 bytes (32 bits) *)
                 let num_bytes = dim ^ " * sizeof(int)" in
                 let host_symbol = f1_host_symbol(symbol) in
                 let device_symbol = f1_device_symbol(symbol) in
-                "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_bounds(b) ^ ",  manycore_program, \"" ^ 
-                device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", " ^ dir ^ ");\n"
+                let single_memcpy (t : tile) : string = 
+                        "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_tile(t) ^ " ,  manycore_program, \"" ^ 
+                        device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", " ^ dir ^ ");\n"
+                in
+                func_within_bounds single_memcpy b
+
 
 (* uhhh... foreach element in dmap array create the appropriate memcpy (or even host gen) *)
 let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : string =
@@ -82,7 +98,7 @@ let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : str
         (* for the head, get the name (i) type (t) and xDim (dim1) *)
         match d with
         | (_, _, i, _, (dim1, _), (_, _), (_,_), (_,_,_), _) ->
-                let single_memcpy = f1_temp, i, convert_expr dim1 in
+                let single_memcpy = i, convert_expr dim1 in
                 func(single_memcpy) ^
                 (* recursively call the function on the next element to process the whole array *)
                 (f1_convert_dmaps dt func))
@@ -94,7 +110,7 @@ let f1_run_and_wait (b : bounds): string =
 
 let f1_result_buffers (args : memcpy) : string = 
         match args with 
-        | (_, symbol, dim) ->
+        | (symbol, dim) ->
                 let host_symbol = f1_host_symbol(symbol) in 
                 "\t" ^ "int *" ^ host_symbol ^ " = (int*)malloc(" ^ dim ^ " * sizeof(int));\n"
 
