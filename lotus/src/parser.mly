@@ -230,7 +230,7 @@ dataMap:
                 LEFT_BRACKET; seg_y = sgmts; DOT; id_y = ID; DOT; num2 = expr; RIGHT_BRACKET;
 
                LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
-       {mt, ml, id, t, (dim_x, dim_y), (id_x, Some id_y), (num1, Some num2), (seg_x, Some seg_y, Some), id2}
+       {mt, ml, id, t, (dim_x, Some dim_y), (id_x, Some id_y), (num1, Some num2), (seg_x, Some seg_y, Some), id2}
 
 dataMaps:
     | d = dataMap
