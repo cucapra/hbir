@@ -11,6 +11,10 @@ let set_program_file (arg : string) : unit =
 let run_gcc : bool ref = ref false
 let set_gcc () : unit = run_gcc := true
 
+
+let run_f1_wrapper : bool ref = ref false
+let set_f1_wrapper () : unit = run_f1_wrapper := true
+
 let run_bsg : bool ref = ref false
 let set_bsg () : unit = run_bsg := true
 let write_bsg (prog : program) : unit =
@@ -38,7 +42,7 @@ let write_f1 (prog : program) : unit =
     close_out ch2;
     (* PBB: generate host program *)
     let ch3 = open_out (*f ^*) (out_dir ^ "/host.c") in
-    output_string ch3 (F1.generate_f1_host prog);
+    output_string ch3 (F1.generate_f1_host prog !run_f1_wrapper);
     close_out ch3;
     ()
 
@@ -58,6 +62,9 @@ let spec : (Arg.key * Arg.spec * Arg.doc) list =
     "Generates code and a Makefile that can be run on the Manycore RTL sim");
     ("-f1", Arg.Set run_f1,
         "Generates code and a Makefile that can be run on the F1 instance");
+    (* where the data should come from *)
+    ("-wrapper", Arg.Set run_f1_wrapper,
+        "Give c function and header to be initiated from another file");
     ("-v", Arg.Set run_v,
     "Prints contents in emitted files")
     ]

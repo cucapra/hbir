@@ -75,7 +75,7 @@ type stmt =
 and if_block = expr * (stmt list)
 
 
-(* 2d helper functions *)
+(* 2d helper functions, TODO be generic and take in expr option list *)
 let apply_to_expr_option (expr_option : expr option) (default : string) (func : expr -> string) : string =
     match expr_option with
         | None -> default

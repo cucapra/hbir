@@ -9,7 +9,7 @@ vvadd:
 	$(COMPILE) examples/f1-benchmarks/vvadd.hbir
 
 gemm:
-	$(COMPILE) examples/f1-benchmarks/gemm.hbir
+	$(COMPILE) -wrapper examples/f1-benchmarks/gemm.hbir
 
 collab-filter:
 	$(COMPILE) examples/f1-benchmarks/collab-filter.hbir

@@ -12,6 +12,17 @@ open Manycore
 
 type bounds = expr * expr * expr * expr
 
+(* bounds, but really want to be a *POLICY* -- symbol name -- array dimenstion *)
+type memcpy = (*bounds * *)string * string
+
+(* helpers for host and device symbol generation *)
+let f1_host_symbol(symbol : string) : string = 
+        "h_" ^ symbol
+
+let f1_device_symbol(symbol : string) : string =
+        (*"d_" ^ symbol*)
+        symbol
+
 let string_of_bounds(b : bounds) : string =
         match b with
         | (x1, y1, x2, y2) ->
@@ -26,29 +37,26 @@ let string_of_tile(t: tile) : string =
 
 (* define some boilerplate strings *)
 let f1_includes = "#include \"f1_helper.h\"\n"
-let f1_main = 
-        "int main(int argc, char *argv[]) {\n" ^
-        "\t" ^ "assert(argc == 2);\n" ^
-        "\t" ^ "char *manycore_program = argv[1];\n" ^
+
+let f1_init_device =
         "\t" ^ "uint8_t fd;\n" ^
         "\t" ^ "if (hb_mc_init_host(&fd) != HB_MC_SUCCESS) {\n" ^
         "\t\t" ^ "printf(\"failed to initialize host.\\n\");\n" ^
         "\t\t" ^ "return 0;\n" ^
         "\t" ^ "}\n\n"
 
-(* helpers for host and device symbol generation *)
-let f1_host_symbol(symbol : string) : string = 
-        "h_" ^ symbol
-
-let f1_device_symbol(symbol : string) : string =
-        (*"d_" ^ symbol*)
-        symbol
-
-(* bounds, but really want to be a *POLICY* -- symbol name -- array dimenstion *)
-type memcpy = (*bounds * *)string * string
+(* if creating a wrapper for the hbir kernel then need to give contents of data *)
+(* TODO eventually support mallocs *)
+let f1_kernel_signature ( args : memcpy ) : string =
+        match args with 
+        | (symbol, _) ->
+                "void *" ^ f1_host_symbol(symbol) ^ ", "
 
 (* generate arbitrary data on the host side *)
-let f1_host_data_gen(args : memcpy) : string = 
+let f1_host_data_gen (gen_wrapper : bool) (args : memcpy) : string = 
+        match gen_wrapper with
+        | true -> ""
+        | false ->
         match args with 
         | (symbol, dim) ->
                 let host_symbol = f1_host_symbol(symbol) in 
@@ -90,10 +98,10 @@ let f1_memcpy (dir : string) (b : bounds) (args : memcpy) : string =
                 func_within_bounds single_memcpy b
 
 
-(* uhhh... foreach element in dmap array create the appropriate memcpy (or even host gen) *)
+(* foreach dmap entry, do the provided function *)
 let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : string =
     match dmaps with
-    | [] -> "//empty dmaps list\n"
+    | [] -> ""
     | d::dt -> (
         (* for the head, get the name (i) type (t) and xDim (dim_x) and yDim option (d_y) *)
         match d with
@@ -108,11 +116,36 @@ let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : str
                 (f1_convert_dmaps dt func))
 
 
+(* develop header for the host program, if standalone, then main, otherwise give wrapper func name *)
+(*TODO need to intepret data map for mem args. also need to give a name! *)
+let f1_main (gen_wrapper : bool) (dmaps : data_map list) : string = 
+        let kernel_name = "hbir_kernel" in
+        let binary_name = "main.riscv" in
+        
+        match gen_wrapper with
+        | false -> (
+                "int main(int argc, char *argv[]) {\n" ^
+                "\t" ^ "assert(argc == 2);\n" ^
+                "\t" ^ "char *manycore_program = argv[1];\n"
+                )
+        | true -> (     
+                let sig_trail : string = f1_convert_dmaps dmaps f1_kernel_signature in
+                (* remove trailing ', ' *)
+                let strLen = String.length sig_trail in
+                let signature = String.sub sig_trail 0 (strLen - 2) in
+                "int " ^ kernel_name ^ "(" ^ signature ^ ") {\n" ^
+                "\t" ^ "char *manycore_program = \"" ^ binary_name ^ "\";\n"
+        )
+        ^ f1_init_device
+
 let f1_run_and_wait (b : bounds): string = 
         "\t" ^ "hammaRunMultiple(fd, " ^ string_of_bounds(b) ^ ");\n\n"
 
 
-let f1_result_buffers (args : memcpy) : string = 
+let f1_result_buffers (gen_wrapper: bool) (args : memcpy) : string = 
+        match gen_wrapper with
+        | true -> ""
+        | false ->
         match args with 
         | (symbol, dim) ->
                 let host_symbol = f1_host_symbol(symbol) in 
@@ -168,18 +201,18 @@ let f1_get_num_tiles ( c : config_decl ) : bounds =
                       b  
 
 (* emits the host code *)
-let generate_f1_host (prog : program) : string =
-    f1_includes ^
-    f1_main ^    
+let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
+    f1_includes ^ 
     match prog with
     | (_, c, d, _) -> (
         let tile_bounds = f1_get_num_tiles(c) in
         match d with
         | (e, dmaps) ->
+                (f1_main gen_wrapper dmaps) ^   
                 (* get dmaps intended to be send in different directions *)
                 let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
                 "\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^
-                (f1_convert_dmaps memcpy_to_dmaps f1_host_data_gen) ^
+                (f1_convert_dmaps memcpy_to_dmaps (f1_host_data_gen gen_wrapper)) ^
                 f1_load_kernel(tile_bounds) ^ 
                 (* for each data field should create a memcpy cmd*)
 
@@ -187,7 +220,7 @@ let generate_f1_host (prog : program) : string =
                 (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
                 f1_run_and_wait(tile_bounds) ^
 
-                (f1_convert_dmaps memcpy_from_dmaps f1_result_buffers) ^ 
+                (f1_convert_dmaps memcpy_from_dmaps (f1_result_buffers gen_wrapper)) ^ 
                 let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
                 (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
                 f1_cleanup_host
