@@ -31,7 +31,8 @@ let rec convert_expr (e : expr) : string =
     | X -> "x"
     | Y -> "y"
     | Id i -> i
-    | Mem (i, e) -> i ^ "[" ^ (convert_expr e) ^ "]"
+    | Mem (i, d1, d2) -> i ^ "[" ^ (convert_expr d1) ^ "]" ^
+        (apply_to_expr_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
     | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"
     | Times (e1, e2) -> "("^(convert_expr e1) ^ " * " ^ (convert_expr e2)^")"
@@ -57,7 +58,10 @@ and convert_stmt (s : stmt) : string =
     match s with
     | Decl (str1, str2) -> str1 ^ " " ^ str2 ^ ";"
     | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
-    | MemAssign ((str1, expr1), expr2) -> str1 ^ "[" ^ (convert_expr expr1) ^ "]" ^ ("= ") ^ (convert_expr expr2) ^ ";"
+    | MemAssign ((symbol, dim_1, dim_2), expr2) -> 
+        symbol ^ "[" ^ (convert_expr dim_1) ^ "]" ^
+        (apply_to_expr_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+        ^ ("= ") ^ (convert_expr expr2) ^ ";"
     | DeclAssign (str1, str2, expr) ->
         if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
         else str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
@@ -88,15 +92,10 @@ and convert_dmaps (dmaps : data_map list) : string =
     | [] -> "//empty dmaps list\n"
     | d::dt -> (
         match d with
-        | (mt, _, i, t, (dim_x, d_y), (_, _), (_,_), (_,_,_), _) ->
+        | (mt, _, i, t, (dim_x, dim_y), (_, _), (_,_), (_,_,_), _) ->
             (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim_x) ^ "]" ^ 
-
-            (
             (* add the second dimension if it exists *)
-            match d_y with
-            | None -> ""
-            | Some dim_y -> "[" ^ (convert_expr dim_y) ^ "]"
-            )
+            (apply_to_expr_option dim_y "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
             ^
             (
             match mt with

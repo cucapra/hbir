@@ -8,7 +8,8 @@ let rec pretty (e : expr) : string =
     | Id i -> i
     | X -> "x"
     | Y -> "y"
-    | Mem (i, e) -> i ^ pretty e
+    | Mem (i, d1, d2) -> i ^ pretty d1 ^
+        (apply_to_expr_option d2 "" (fun (d : expr) : string -> pretty d))
     | Plus (e1, e2) -> (pretty e1) ^ " + " ^ (pretty e2)
     | Minus (e1, e2) -> (pretty e1) ^ " - " ^ (pretty e2)
     | Times (e1, e2) -> (pretty e1) ^ " * " ^ (pretty e2)
@@ -27,7 +28,10 @@ let pretty_stmt (s : stmt) : string =
     match s with
     | Decl (_,_) -> "decl "
     | Assign (str1, expr) -> str1 ^ ("= ") ^ (pretty expr)
-    | MemAssign ((str1, expr1), expr2) -> str1 ^ (pretty expr1) ^ ("= ") ^ (pretty expr2)
+    | MemAssign ((symbol, dim_1, dim_2), expr2) -> 
+      symbol ^ (pretty dim_1) ^  
+      (apply_to_expr_option dim_2 "" (fun (d : expr) : string -> pretty d)) 
+      ^ ("= ") ^ (pretty expr2)
     | DeclAssign (_,_,_) -> "declAssign "
     | If (_,_,_) -> "if "
     | While (_,_) -> "while "
@@ -44,7 +48,7 @@ let rec eval (e : expr) : int =
     | Id _ -> -1
     | X -> 0
     | Y -> 0
-    | Mem (_, _) -> -1
+    | Mem (_, _, _) -> -1
     | Plus (e1, e2) -> (eval e1) + (eval e2)
     | Minus (e1, e2) -> (eval e1) - (eval e2)
     | Times (e1, e2) -> (eval e1) * (eval e2)

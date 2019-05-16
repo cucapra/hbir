@@ -288,8 +288,18 @@ stmt:
         { Decl ("float", id) }
     | id = ID; EQ; e = expr; SEMICOLON
         { Assign (id, e) }
+
+    (* Memory statements, Do we want to allow for any number of lookups? *)
+
+    (* 1D access *)
     | id = ID; LEFT_BRACKET; e1 = expr; RIGHT_BRACKET; EQ; e2 = expr; SEMICOLON
-        { MemAssign ((id, e1), e2) }
+        { MemAssign ((id, e1, None), e2) }
+    (* 2D access *)
+    | id = ID; LEFT_BRACKET; dim_1 = expr; RIGHT_BRACKET; 
+               LEFT_BRACKET; dim_2 = expr; RIGHT_BRACKET; 
+        EQ; e2 = expr; SEMICOLON
+        { MemAssign ((id, dim_1, Some dim_2), e2) }
+
     | INT; id = ID; EQ; e = expr; SEMICOLON
         { DeclAssign ("int", id, e) }
     | BOOL; id = ID; EQ; e = expr; SEMICOLON
@@ -365,8 +375,12 @@ expr:
     | CONFIG; DOT; i = ID
         { Id i }
     (* Make a new type for this to retain the index *)
+    (* 1D *)
     | i = ID; LEFT_BRACKET; e = expr; RIGHT_BRACKET;
-        { Mem (i, e) }
+        { Mem (i, e, None) }
+    (* 2D *)
+    | i = ID; LEFT_BRACKET; d1 = expr; RIGHT_BRACKET; LEFT_BRACKET; d2 = expr; RIGHT_BRACKET;
+        { Mem (i, d1, Some d2) }
     | i = ID
         { Id i }
 

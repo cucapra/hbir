@@ -55,10 +55,11 @@ code{
 
 
         for(int k = 0; k < csize; k=k+1){
-            C[0] = A[k] * B[k];
+            C[0][0] = A[0][k] * B[k][0];
         }
 
         
         bsg_finish();
     }
 }
+

@@ -42,7 +42,8 @@ type expr =
     | Y
     | Bool of bool
     | Id of string
-    | Mem of string * expr
+    (* TODO: make this a expr option list and then map down as needed *)
+    | Mem of string * expr * expr option
     | Plus of expr * expr
     | Minus of expr * expr
     | Times of expr * expr
@@ -61,7 +62,7 @@ type stmt =
     (*| Decl of *)
     | Decl of string * string
     | Assign of string * expr
-    | MemAssign of (string * expr) * expr
+    | MemAssign of (string * expr * expr option) * expr
     | DeclAssign of string * string * expr
     (*| If of expr * (stmt list) * (stmt option)  condition * if-block * else-block *)
     | If of if_block * (if_block list) * ((stmt list) option)
@@ -72,6 +73,14 @@ type stmt =
     | BsgFinish
 
 and if_block = expr * (stmt list)
+
+
+(* 2d helper functions *)
+let apply_to_expr_option (expr_option : expr option) (default : string) (func : expr -> string) : string =
+    match expr_option with
+        | None -> default
+        | Some extracted_expr -> func extracted_expr
+
 
 (* hbir *)
 (* move to generic decl node *)
