@@ -95,10 +95,14 @@ let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : str
     match dmaps with
     | [] -> "//empty dmaps list\n"
     | d::dt -> (
-        (* for the head, get the name (i) type (t) and xDim (dim1) *)
+        (* for the head, get the name (i) type (t) and xDim (dim_x) and yDim option (d_y) *)
         match d with
-        | (_, _, i, _, (dim1, _), (_, _), (_,_), (_,_,_), _) ->
-                let single_memcpy = i, convert_expr dim1 in
+        | (_, _, i, _, (dim_x, d_y), (_, _), (_,_), (_,_,_), _) ->
+                let dim : expr = match d_y with
+                        | None -> dim_x
+                        | Some dim_y -> Times (dim_x,dim_y)
+                in
+                let single_memcpy = i, convert_expr dim in
                 func(single_memcpy) ^
                 (* recursively call the function on the next element to process the whole array *)
                 (f1_convert_dmaps dt func))
