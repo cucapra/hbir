@@ -1,0 +1,64 @@
+target{
+    memory g[4]{
+        size 8G;
+        width 8B;
+    };
+
+    tile t[4][4];
+}
+
+config{
+    group tg[4][3] {
+        tile target.t[x][y];
+    };
+}
+
+data{
+    const dim = 160;
+
+    A: int[dim][dim] = block[target.g.x_max][target.g.x_max] {
+        target.g[x];
+        global;
+        chunked;
+        host;
+    };
+
+    B: int[dim][dim] = block[target.g.x_max][target.g.x_max] {
+        target.g[x];
+        global;
+        chunked;
+        host;
+    };
+
+    C: int[dim][dim] = block[target.g.x_max][target.g.x_max] {
+        target.g[x];
+        global;
+        chunked;
+        device;
+    };
+}
+
+// TODO how do we communicate blocking/tiling within a tile? inferred from data? inferred from target? need a new section?
+// i.e. for (int k = 0; k < m; k++) {} -> for (int k_o = 0; k_o < m/4; k_o++) { for (int k_i = 0; k_i < 4; k_i ++) {} }
+
+//       t                    n                            n
+//    _______          _______________               _______________
+//   |       |        |               |             |               |
+// m |       |  x   t |               |     =     m |               |
+//    -------         |               |              ---------------
+//                     ---------------    
+//
+// doing a in a y by x fashion
+
+code{
+    config.tg[x][y]{
+
+
+        for(int k = 0; k < csize; k=k+1){
+            C[0] = A[k] * B[k];
+        }
+
+        
+        bsg_finish();
+    }
+}

@@ -79,6 +79,8 @@ type size_decl = string
 
 type width_decl = string
 
+(*type height_decl = string*)
+
 type mem_decl = string * expr * (size_decl * width_decl)
 
 type tile_decl = string * (expr * expr) * (mem_decl option)
@@ -97,6 +99,8 @@ type group_decl =
 
 type code = tile * stmt list
 
+(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ type (int/float) ~ 
+   [x] ~ [y] ~ *)
 type data_map = mem_type * mem_location * string * generic_type * (expr * expr option) * (string * string option)
                 * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
 

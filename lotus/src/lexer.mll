@@ -1,3 +1,5 @@
+(* Define the symbols from parser.mly *)
+
 {
 open Parser
 }

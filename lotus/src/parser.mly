@@ -109,6 +109,7 @@ target:
     | TARGET; LEFT_BRACE; MEMORY; mem = memory; TILE; ti = tile; RIGHT_BRACE
         { (mem, ti) }
 
+(* Possible ways to parse a line in the data section *)
 memory:
     | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
       LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON
@@ -192,21 +193,35 @@ memLocation:
     | DEVICE; SEMICOLON
         { Device }
 
-(*TODO: Currently hard-code chunked memory type *)
+(* TODO: Currently hard-code chunked memory type *)
+(* TODO: Seems like we should be able to reuse some parsing chunks rather than repeat *)
+(* TODO: What's the point of saying block[target.g.x_max] *)
 dataMap:
     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num2 = expr; RIGHT_BRACKET;
                LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
        {mt, ml, id, t, (num1, None), (id1, None), (num2, None), (s1, Some s2, None), id2}
+    
     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
                LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
        {mt, ml, id, t, (num1, Some num2), (id1, None), (num3, None), (s1, Some s2, None), id2}
+
     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
                       LEFT_BRACKET; s2 = sgmts; DOT; id2 = ID; DOT; num4 = expr; RIGHT_BRACKET;
                LEFT_BRACE; s3 = sgmts; DOT; id3 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
        {mt, ml, id, t, (num1, Some num2), (id1, Some id2), (num3, Some num4), (s1, Some s3, Some s2), id3}
+
+    | id = ID; COLON; t = typ; 
+                    LEFT_BRACKET; dim_x = expr; RIGHT_BRACKET; 
+                    LEFT_BRACKET; dim_y = expr; RIGHT_BRACKET;
+                    EQ;
+                BLOCK; LEFT_BRACKET; seg_x = sgmts; DOT; id_x = ID; DOT; num1 = expr; RIGHT_BRACKET;
+                LEFT_BRACKET; seg_y = sgmts; DOT; id_y = ID; DOT; num2 = expr; RIGHT_BRACKET;
+
+               LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
+       {mt, ml, id, t, (dim_x, dim_y), (id_x, id_y), (num1, num2), (seg_x, Some seg_y, Some), id2}
 
 dataMaps:
     | d = dataMap
