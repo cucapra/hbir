@@ -36,7 +36,14 @@ let string_of_tile(t: tile) : string =
         (convert_expr x) ^ ", " ^ (convert_expr y)
 
 (* define some boilerplate strings *)
-let f1_includes = "#include \"f1_helper.h\"\n"
+let f1_includes (gen_wrapper: bool) : string = 
+        (
+        match gen_wrapper with
+        | true -> "#include \"wrapper.h\"\n" 
+        | false -> ""
+        )
+        ^
+        "#include \"f1_helper.h\"\n"
 
 let f1_init_device =
         "\t" ^ "uint8_t fd;\n" ^
@@ -116,6 +123,18 @@ let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : str
                 (f1_convert_dmaps dt func))
 
 
+(* create the whole signature (all arguments) for hbir kernel *)
+let f1_create_full_signature (dmaps: data_map list) : string =
+        let sig_trail : string = f1_convert_dmaps dmaps f1_kernel_signature in
+        (* remove trailing ', ' *)
+        let strLen = String.length sig_trail in
+        let signature = String.sub sig_trail 0 (strLen - 2) in
+        signature
+
+let f1_create_kernel_header (kernel_name : string) (dmaps : data_map list) : string =
+        let signature = (f1_create_full_signature dmaps) in
+        "int " ^ kernel_name ^ "(" ^ signature ^ ")"
+
 (* develop header for the host program, if standalone, then main, otherwise give wrapper func name *)
 (*TODO need to intepret data map for mem args. also need to give a name! *)
 let f1_main (gen_wrapper : bool) (dmaps : data_map list) : string = 
@@ -129,11 +148,7 @@ let f1_main (gen_wrapper : bool) (dmaps : data_map list) : string =
                 "\t" ^ "char *manycore_program = argv[1];\n"
                 )
         | true -> (     
-                let sig_trail : string = f1_convert_dmaps dmaps f1_kernel_signature in
-                (* remove trailing ', ' *)
-                let strLen = String.length sig_trail in
-                let signature = String.sub sig_trail 0 (strLen - 2) in
-                "int " ^ kernel_name ^ "(" ^ signature ^ ") {\n" ^
+                (f1_create_kernel_header kernel_name dmaps) ^ " {\n" ^
                 "\t" ^ "char *manycore_program = \"" ^ binary_name ^ "\";\n"
         )
         ^ f1_init_device
@@ -202,7 +217,7 @@ let f1_get_num_tiles ( c : config_decl ) : bounds =
 
 (* emits the host code *)
 let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
-    f1_includes ^ 
+    (f1_includes gen_wrapper) ^ 
     match prog with
     | (_, c, d, _) -> (
         let tile_bounds = f1_get_num_tiles(c) in
@@ -225,6 +240,21 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
                 (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
                 f1_cleanup_host
     )
+
+(* generates header file to include in your program to run the hbir kernel *)
+let generate_f1_wrapper_header (prog : program) : string =
+    match prog with
+    | (_, _, d, _) -> 
+        match d with 
+        | (_, dmaps) ->
+                let kernel_name = "hbir_kernel" in
+                let unique_def_name = "___" ^ kernel_name ^ "___" in
+                "#ifndef " ^ unique_def_name ^ "\n" ^
+                "#define " ^ unique_def_name ^ "\n" ^
+                (f1_create_kernel_header kernel_name dmaps) ^ ";\n" ^
+                "#endif\n"
+
+
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)
 let generate_f1_device (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
