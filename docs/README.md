@@ -1,0 +1,1 @@
+This folder contains source files for generating documentation for HBIR and Lotus.
