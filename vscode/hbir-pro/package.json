@@ -1,0 +1,25 @@
+{
+    "name": "hbir-pro",
+    "displayName": "HBIR Pro",
+    "description": "Syntax Highligthing for HBIR",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.34.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "hbir",
+            "aliases": ["hbir", "hbir"],
+            "extensions": [".hbir"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "hbir",
+            "scopeName": "source.hbir",
+            "path": "./syntaxes/hbir.tmLanguage.json"
+        }]
+    }
+}
