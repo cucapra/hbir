@@ -61,33 +61,31 @@ data{
     n = 16;
     t = 16;
 
-    A: int[m][t] = block[target.g.x_max][target.g.x_max] {
-        target.g[x];
-        global;
-        chunked;
-        host;
+    A: int[m][t] -> chunked[target.g.x_max][target.g.x_max] {
+        //target.g[x]; // redundant?
     };
 
-    B: int[t][n] = block[target.g.x_max][target.g.x_max] {
-        target.g[x];
-        global;
-        chunked;
-        host;
+    B: int[t][n] -> chunked[target.g.x_max][target.g.x_max] {
+        //target.g[x];
     };
 
-    C: int[m][n] = block[target.g.x_max][target.g.x_max] {
-        target.g[x];
-        global;
-        chunked;
-        device;
+    C: int[m][n] <- chunked[target.g.x_max][target.g.x_max] {
+        //target.g[x];
     };
 }
 
 // what computation we want to run
 code{
     config.tg[x][y]{
+
         // call standard cell/primitive
-        C = A matmul B;
+
+        // infer how many times we need to run this based on the sizes of A,B
+        // and the signature of 'matmul'
+        for (i in alex_iterator<data,target>) {
+            // <list of outputs> = <accel> <list of inputs>
+            C[i] = m.matmul[1][1] A[i] B[i];
+        }
     
         bsg_finish();
     }
