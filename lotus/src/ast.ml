@@ -38,6 +38,7 @@ type expr =
     | Literal of literal
     | String of string
     | Int of int
+    | Float of float
     | X
     | Y
     | Bool of bool

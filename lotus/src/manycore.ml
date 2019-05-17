@@ -28,6 +28,7 @@ let rec convert_expr (e : expr) : string =
         | YMax -> "y_max")
     | String str -> str
     | Int i -> string_of_int i
+    | Float i -> string_of_float i
     | X -> "x"
     | Y -> "y"
     | Id i -> i

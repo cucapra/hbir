@@ -60,6 +60,7 @@ open Ast
 %token EOF
 
 %token <int> INT_LITERAL
+%token <float> FLOAT_LITERAL
 %token <string> ID
 %token <string> STR
 
@@ -355,6 +356,8 @@ expr:
         { Int i }
     | s = STR
         { String s }
+    | f = FLOAT_LITERAL
+        { Float f }
     | e1 = expr; PLUS; e2 = expr
         { Plus (e1, e2) }
     | e1 = expr; MINUS; e2 = expr
@@ -397,6 +400,7 @@ expr:
     | i = ID
         { Id i }
 
+(* TODO unused: mark for removal *)
 typ:
     | FLOAT
         { FloatTyp }

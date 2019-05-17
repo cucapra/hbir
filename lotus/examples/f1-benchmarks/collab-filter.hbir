@@ -64,7 +64,29 @@ data{
 // TODO first loop should be dot product of arrays
 code{
     config.tg[x][y]{
+        
+        float lr = 0.1;
+        for (int u = 0; u < users; u=u+1) {
+            for (int i = 0; i < items; i=i+1) {
+                // make prediction via DOT product
+                int prediction = 0;
+                for (int l = 0; l < 1; l=l+1) {
+                    prediction = prediction + latent_user[u] * latent_item[i];
+                }
+
+                int edgeIdx = i + u * items;
+                int error = prediction - hidden_preferences[edgeIdx];
+                
+                // update latent prediction vectors
+                for (int l = 0; l < 1; l=l+1){
+                    latent_user[u] = latent_user[u] + lr * (error * latent_item[i] - lambda * latent_user[u]);
+                    latent_item[i] = latent_item[i] + lr * (error * latent_user[u] - lambda * latent_item[i]);
+                }
+            }
+        }
+
         bsg_finish();
+
     }
 }
 

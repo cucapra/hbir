@@ -10,6 +10,7 @@ let rec convert_expr (e : expr) : string =
     | Literal _ -> "literal"
     | String str -> str
     | Int i -> string_of_int i
+    | Float i -> string_of_float i
     | Id i -> i
     | X -> "x"
     | Y -> "y"

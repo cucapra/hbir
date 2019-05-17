@@ -5,6 +5,7 @@ let rec pretty (e : expr) : string =
     | Literal _ -> "literal"
     | String str -> str
     | Int i -> string_of_int i
+    | Float i -> string_of_float i
     | Id i -> i
     | X -> "x"
     | Y -> "y"
@@ -45,6 +46,7 @@ let rec eval (e : expr) : int =
     | Literal _ -> -1
     | String _ -> -1
     | Int i -> i
+    | Float _ -> -1
     | Id _ -> -1
     | X -> 0
     | Y -> 0
