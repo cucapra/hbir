@@ -17,8 +17,12 @@
 					"match": "\\b(if|while|for|return)\\b"
 				},
 				{
-					"name": "storage.type",
+					"name": "storage.type.hbir",
 					"match" : "\\b(int|float|bool)\\b"
+				},
+				{
+					"name": "string.xml.hbir",
+					"match": "\\b(target|config|data|code)\\b"
 				}
 			]
 		},
