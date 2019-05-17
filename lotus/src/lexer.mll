@@ -57,7 +57,6 @@ rule token =
     | "y_max"       { Y_MAX }
 
     | "data"        { DATA }
-    | "const dim"   { DIM }
 
     | "code"        { CODE }
 

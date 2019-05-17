@@ -16,7 +16,7 @@ config{
 }
 
 data{
-    const dim = 160;
+    dim = 160;
 
     g_src0: int[dim] = block[target.g.x_max] {
         target.g[x];

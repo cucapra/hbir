@@ -28,7 +28,7 @@ open Ast
 %token Y_MAX
 
 %token DATA
-%token DIM
+(*%token DIM*)
 
 %token CODE
 
