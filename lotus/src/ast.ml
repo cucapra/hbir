@@ -74,6 +74,10 @@ type stmt =
 
 and if_block = expr * (stmt list)
 
+(* fewer statements allowed in data section TODO merge with stmt using parent_stmt? *)
+type data_stmt =
+    (*| Decl of *)
+    | Assign of string * expr
 
 (* 2d helper functions, TODO be generic and take in expr option list *)
 let apply_to_expr_option (expr_option : expr option) (default : string) (func : expr -> string) : string =
@@ -122,7 +126,7 @@ type config_decl = group_decl list
 
 (* TODO: need to add mem list *)
 (* data sections *)
-type data_decl = expr * data_maps
+type data_decl = data_stmt list * data_maps
 
 type code_decl = ((stmt list) option) * code list
 

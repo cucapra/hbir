@@ -95,7 +95,7 @@ let pretty_program (p : program) : string =
                       "config group " ^ s1 ^ " with dim " ^ (pretty e1) ^ ", " ^ (pretty e2))
         ) ^ "\n" ^
         (match data with
-        | (d, _) -> "data with dim " ^ (pretty d)
+        | (_, _) -> "data with dim " (*^ (pretty d)*)
         ) ^ "\n" ^
         (match code with
         | (_, codeList) -> "code with " ^ (pretty_codelist codeList)

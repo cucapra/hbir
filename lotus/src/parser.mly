@@ -109,7 +109,7 @@ target:
     | TARGET; LEFT_BRACE; MEMORY; mem = memory; TILE; ti = tile; RIGHT_BRACE
         { (mem, ti) }
 
-(* Possible ways to parse a line in the data section *)
+(* Possible ways to parse a memory line in the target section *)
 memory:
     | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
       LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON
@@ -176,10 +176,12 @@ group:
     | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g2 = group; RIGHT_BRACE; SEMICOLON
         { NestedGroup (id, (num1, num2), g2)}
 
+(* code in the data section -> parse a mix of dimension decl and data map decls *)
+(* prob only want to allow subset of the language! *)
 data:
     (* TODO: Remove hard-coded dimension, allow arbitrary statements here  *)
-    | DATA; LEFT_BRACE; DIM; EQ; num = expr; SEMICOLON; dl = dataMaps; RIGHT_BRACE
-        { (num, dl) }
+    | DATA; LEFT_BRACE; sl = dataStmtList; dl = dataMaps; RIGHT_BRACE
+        { (sl, dl) }
 
 memType:
     | GLOBAL; SEMICOLON
@@ -269,6 +271,12 @@ stmtList:
     | s1 = stmtList; s2 = stmt
         {s1@(s2::[]) }
 
+dataStmtList:
+    | s = dataStmt
+        { s::[] }
+    | s1 = dataStmtList; s2 = dataStmt
+        {s1@(s2::[]) }
+
 elseIfList:
     | e = elseIf
         { e::[] }
@@ -278,6 +286,11 @@ elseIfList:
 elseIf:
     | ELSE; IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE
         { (e, sl) }
+
+(* only assigns allowed for now *)
+dataStmt:
+    | id = ID; EQ; e = expr; SEMICOLON
+        { Assign (id, e) }
 
 stmt:
     | INT; id = ID; SEMICOLON

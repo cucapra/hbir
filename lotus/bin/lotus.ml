@@ -44,6 +44,13 @@ let write_f1 (prog : program) : unit =
     let ch3 = open_out (*f ^*) (out_dir ^ "/host.c") in
     output_string ch3 (F1.generate_f1_host prog !run_f1_wrapper);
     close_out ch3;
+    (* if we need a wrapper then also need to create a header file *)
+    if (!run_f1_wrapper) then (
+        let header = open_out (*f ^*) (out_dir ^ "/wrapper.h") in
+        output_string header (F1.generate_f1_wrapper_header prog);
+        close_out header;
+    )
+    else
     ()
 
 let run_pp : bool ref = ref false

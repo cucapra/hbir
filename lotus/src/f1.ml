@@ -222,11 +222,12 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
     | (_, c, d, _) -> (
         let tile_bounds = f1_get_num_tiles(c) in
         match d with
-        | (e, dmaps) ->
+        | (sl, dmaps) ->
                 (f1_main gen_wrapper dmaps) ^   
                 (* get dmaps intended to be send in different directions *)
                 let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
-                "\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^
+                (convert_data_stmtlist sl) ^
+                (*"\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^*)
                 (f1_convert_dmaps memcpy_to_dmaps (f1_host_data_gen gen_wrapper)) ^
                 f1_load_kernel(tile_bounds) ^ 
                 (* for each data field should create a memcpy cmd*)

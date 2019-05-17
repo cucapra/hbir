@@ -106,21 +106,31 @@ and convert_dmaps (dmaps : data_map list) : string =
 
 and convert_target (prog : program) : string =
     match prog with
-    | (t, _, d, _) ->
-        let memsize = match d with
-                      | (e, _) -> (convert_expr e) in
+    | (t, _, _, _) ->
+        (*let memsize = match d with
+                      | (e, _) -> (convert_expr e) in*)
         (*TODO: Hard-code chunk size for now*)
         match t with
         | (_, (_, (_, _), _)) ->
-            "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" ^
-            "volatile int csize = " ^ memsize ^ "/(bsg_tiles_X * bsg_tiles_Y);\n"
+            "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" (*^
+            "volatile int csize = " ^ memsize ^ "/(bsg_tiles_X * bsg_tiles_Y);\n"*)
+
+and convert_data_stmt (s : data_stmt) : string =
+    match s with
+    | Assign (str1, expr) -> "#define " ^ str1 ^ " " ^ (convert_expr expr)
+
+(* stmt list that shows ups in the data section, but throw define in front of everything *)
+and convert_data_stmtlist (sl : data_stmt list) =
+    match sl with
+    | [] -> ""
+    | s::st -> ((convert_data_stmt s)  ^ "\n" ^ (convert_data_stmtlist st))
 
 (* TODO: Remove hard-coding *)
 and convert_mem (prog : program) : string =
     match prog with
     | (_, _, d, _) ->
         match d with
-        | (e, dmaps) -> "#define dim " ^ (convert_expr e) ^ "\n" ^ (convert_dmaps dmaps)
+        | (sl, dmaps) -> (convert_data_stmtlist sl) ^ "\n" ^ (convert_dmaps dmaps)
 
 and convert_codelist (cl : code list) : string =
     match cl with
