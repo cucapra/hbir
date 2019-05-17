@@ -71,7 +71,7 @@ code{
                 // make prediction via DOT product
                 int prediction = 0;
                 for (int l = 0; l < 1; l=l+1) {
-                    prediction = prediction + latent_user[u] * latent_item[i];
+                    prediction += latent_user[u] * latent_item[i];
                 }
 
                 int edgeIdx = i + u * items;
@@ -79,8 +79,8 @@ code{
                 
                 // update latent prediction vectors
                 for (int l = 0; l < 1; l=l+1){
-                    latent_user[u] = latent_user[u] + lr * (error * latent_item[i] - lambda * latent_user[u]);
-                    latent_item[i] = latent_item[i] + lr * (error * latent_user[u] - lambda * latent_item[i]);
+                    latent_user[u] += lr * (error * latent_item[i] - lambda * latent_user[u]);
+                    latent_item[i] += lr * (error * latent_user[u] - lambda * latent_item[i]);
                 }
             }
         }

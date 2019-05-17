@@ -320,6 +320,20 @@ stmt:
         { DeclAssign ("bool", id, e) }
     | FLOAT; id = ID; EQ; e = expr; SEMICOLON
         { DeclAssign ("float", id, e) }
+
+    (* += ++ operators here *)
+    (* TODO we have to define every mem assign for every type of op? *)
+    | id = ID; PLUS; EQ; e = expr; SEMICOLON
+        { Assign (id, Plus (Id id, e))}
+    (* 1D access *)
+    | id = ID; LEFT_BRACKET; e1 = expr; RIGHT_BRACKET; PLUS; EQ; e2 = expr; SEMICOLON
+        { MemAssign ((id, e1, None), Plus (Mem(id, e1, None), e2)) }
+    (* 2D access *)
+    | id = ID; LEFT_BRACKET; dim_1 = expr; RIGHT_BRACKET; 
+               LEFT_BRACKET; dim_2 = expr; RIGHT_BRACKET;  
+               PLUS; EQ; e2 = expr; SEMICOLON
+        { MemAssign ((id, dim_1, Some dim_2), Plus (Mem(id, dim_1, Some dim_2), e2)) }
+
     | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE
         {If((e, sl), [], None) }
     | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmtList; RIGHT_BRACE;
@@ -399,6 +413,7 @@ expr:
         { Mem (i, d1, Some d2) }
     | i = ID
         { Id i }
+
 
 (* TODO unused: mark for removal *)
 typ:
