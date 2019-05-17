@@ -15,6 +15,10 @@
 				{
 					"name": "keyword.control.hbir",
 					"match": "\\b(if|while|for|return)\\b"
+				},
+				{
+					"name": "storage.type",
+					"match" : "\\b(int|float|bool)\\b"
 				}
 			]
 		},
