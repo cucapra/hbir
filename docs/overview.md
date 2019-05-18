@@ -12,8 +12,8 @@ access to a larger global memory. While still in its preliminary stages,
 the architecture attempts to close the gap between completely
 reconfigurable architectures (FPGA) and static accelerators (specialized
 accelerator ASICs) by allowing course-grain reconfiguration to represent
-three idealized architectures -- massive manycores, vector, and dataflow
--- and also a wide range of combinations between them.\
+three idealized architectures---massive manycores, vector, and dataflow---and also a wide range of combinations between them.
+
 A programmer targeting this architecture will write high-level
 applications using a wide-range of machine-learning and graph frameworks
 (such as TensorFlow, PyTorch, and Grappa) and then use our compiler
@@ -21,7 +21,8 @@ tool-chain to target the architecture by configuring the tiles to a
 well-fit topology as well as generating code that the hardware can run.
 As the project is in it's early stages and lacks frontend support with
 actual frameworks currently; several attempts have been made to further
-programmability during the initial phase.\
+programmability during the initial phase.
+
 The first approach to programming HammerBlade consists of writing C
 programs and using a library of low-level functions to handle inter-tile
 communication and configuration of the hardware. While this has been
@@ -31,7 +32,7 @@ in order to map to an application. As a solution, an intermediate
 representation that encapsulates both hardware configuration details and
 algorithmic details has been proposed. This document contains a
 specification of the intermediate language at its current state as well
-as an overview of where it should go in the future.\
+as an overview of where it should go in the future.
 
 
 Future Work
@@ -61,8 +62,8 @@ corresponding compiler which generates C++ code. The compiler stack for
 machine learning will leverage TVM which is developed mainly by UW as a
 compiler stack for various machine learning frameworks (essentially all
 of them). TVM has a unified IR for machine learning and also supports
-many different backends (including a C backend as of
-https://github.com/dmlc/tvm/pull/2161).\
+many different backends (including a [C backend](https://github.com/dmlc/tvm/pull/2161)).
+
 Currently, HBIR exists as a human-readable and human-writable IR/DSL
 that is used to easily program HammerBlade hardware instances (which
 mainly run RISC-V assembly). The code segment currently uses C-like code
@@ -71,7 +72,7 @@ can generate code that can be massaged easily to fit the code segment's
 specifications; this defeats the purpose of having HBIR being
 human-readable and human-writable. For future iterations, it is probably
 better to move the code segment to look more like an IR that
-encapsualtes both TVM's and GraphIt's while also optimizing to allow
+encapsulates both TVM's and GraphIt's while also optimizing to allow
 programmers to still write HBIR programs if they'd like. This is also
 beneficial in that it removes a stage in our compiler toolchain (not
 having to run either TVM and GraphIt and then Lotus).
@@ -119,19 +120,20 @@ extremely important. Basic type-checking features to be added include
 
 In addition to type checking, while HBIR is more human-writable than
 writing a C-program using the low-level bsg primitives, it is still
-dificult to get correct and simply running on any of the backends
+difficult to get correct and simply running on any of the backends
 doesn't provide a good debugging experience. Building a simple
 interpreter or emulator to allow high-level verification of HBIR
 programs is also important while HBIR is primarily used as a DSL.
 
-### Compiling more Feature-Rich Code Segments
+### Compiling More Feature-Rich Code Segments
 
 Programs utilizing vectors and simple memory access patterns are
 currently functional when compiling using Lotus. More complicated
 access-patterns such as memory replication, striping, or chunking is yet
-to be tested. Applications using arrays are currently untested as well.\
+to be tested. Applications using arrays are currently untested as well.
+
 In addition to simply adding support for more applications, several
 improvements to the code segment can make the IR more human-writable. An
 example is allowing iterators to be used in for-loops. This abstracts
 away the need for programmers to directly write how indexing should
-change based off changing configurations.\
+change based off changing configurations.
