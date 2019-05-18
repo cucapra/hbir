@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-project = 'hbir'
+project = 'HBIR'
 copyright = '2019, Cornell University'
 author = 'Cornell University'
 
