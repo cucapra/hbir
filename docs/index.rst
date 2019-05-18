@@ -14,4 +14,3 @@ algorithm should use the hardware.
    overview
    lang
    lotus
-   future
