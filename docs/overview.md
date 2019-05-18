@@ -1,5 +1,9 @@
+Overview & Motivation
+=====================
+
+
 Target Architecture Model
-=========================
+-------------------------
 
 At a high level, our target architecture is a many-core fabric with each
 tile having a small CGRA, small local memory, and a small CPU. Each tile
@@ -29,15 +33,15 @@ algorithmic details has been proposed. This document contains a
 specification of the intermediate language at its current state as well
 as an overview of where it should go in the future.\
 
-Future work
-===========
+
+Future Work
+-----------
 
 There is currently a lot of ongoing work with the compiler as well as
 finalizing the semantics of the IR. Each section describes work that
 needs to be done for both HBIR and Lotus.
 
-Long-term goals
----------------
+### Long-Term Goals
 
 The end-goal of the compiler tool-chain for HammerBlade consists of an
 end-to-end compilation flow from high-level frameworks (TensorFlow,
@@ -46,7 +50,7 @@ compiler tool-chain should also have profiling and dynamic
 reconfiguration built in to allow dynamic reconfiguration of the
 hardware based off changing application properties.
 
-### Frontend integration with high-level frameworks
+#### Frontend Integration with High-Level Frameworks
 
 Frontend integration with existing compiler stacks for machine learning
 and graph applications (TVM and a corresponding Graph compiler stack,
@@ -72,7 +76,7 @@ programmers to still write HBIR programs if they'd like. This is also
 beneficial in that it removes a stage in our compiler toolchain (not
 having to run either TVM and GraphIt and then Lotus).
 
-### Dynamic Reconfiguration
+#### Dynamic Reconfiguration
 
 This is currently an unknown in terms of implementation and scope but
 the end goal is to allow dynamic reconfiguration of the hardware based
@@ -84,8 +88,8 @@ generate config, data, and possibly code segments of an HBIR program
 mentions using machine learning to handle profiling and ultimately the
 aforementioned inference.
 
-Type checking in Lotus
-----------------------
+
+### Type Checking in Lotus
 
 Currently, there is no type checking done at compile-time for a HBIR
 program compiled using Lotus. For the foreseeable future, HBIR will
@@ -111,8 +115,7 @@ extremely important. Basic type-checking features to be added include
 -   Basic code segment type-checking (although we can leverage gcc for
     this).
 
-Interpreter/Emulator
---------------------
+### Interpreter/Emulator
 
 In addition to type checking, while HBIR is more human-writable than
 writing a C-program using the low-level bsg primitives, it is still
@@ -121,8 +124,7 @@ doesn't provide a good debugging experience. Building a simple
 interpreter or emulator to allow high-level verification of HBIR
 programs is also important while HBIR is primarily used as a DSL.
 
-Compiling more feature-rich code segments
------------------------------------------
+### Compiling more Feature-Rich Code Segments
 
 Programs utilizing vectors and simple memory access patterns are
 currently functional when compiling using Lotus. More complicated

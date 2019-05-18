@@ -1,5 +1,8 @@
-HBIR Segments
-=============
+The HBIR Language
+================
+
+Segments
+--------
 
 The following subsections describe the four segments of an HBIR program.
 A valid HBIR program must have all four segments with strict
@@ -9,8 +12,7 @@ memory mappings while the last segment describes high-level algorithmic
 details; hence the first three segments have very strict syntax and
 little support for extraneous operations.
 
-Target
-------
+### Target
 
 ![HammerBlade architecture](hammerblade_arch.png){width="50%"}
 
@@ -100,8 +102,7 @@ Figure 1 by mapping the 2 L2 caches as a global memory with each having
 8GB and 8B access width. It also has has 128x64 tiles with each one
 having a small local memory of 64KB and also an access width of 8B.\
 
-Config
-------
+### Config
 
 The **config** segment expresses the dynamic configuration of the
 hardware that best fits an application. This section overlays any
@@ -173,8 +174,7 @@ config {
 
 Finally, programmers can also nest groups.\
 
-Data
-----
+### Data
 
 The data segment expresses how logical data structures, currently
 vectors and arrays, map to to physical memory, both global and local,
@@ -237,8 +237,7 @@ data{
 Other flags are chunked, replicated, and striped which change how the
 data is distributed across the data structure.\
 
-Code
-----
+### Code
 
 The code segment expresses the high-level application by tying it to
 groups defined in the config segment and using logical data structures
@@ -280,8 +279,9 @@ for loop that has data indexing into the global arrays A, B, and C
 hard-coded. Tile (0, 0) is also given a special instruction to call
 bsg\_finish(). Global code is also written to declare g\_done\_flag.
 
-HBIR Data types
-===============
+
+Data Types
+----------
 
 This section outlines different data types in an HBIR program (outside
 of the code segment), where the data type is valid, and a brief
@@ -301,8 +301,9 @@ description on its use.
   host         data             Used to specify that a logical data is an input.
   device       data             Used to specify that a logical data is an output.
 
+
 Code Segment SPMD specification
-===============================
+-------------------------------
 
 The code segment uses a simple, C-like, SSA-form imperative language.
 This section outlines basic features that the language currently

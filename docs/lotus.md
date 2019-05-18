@@ -1,5 +1,5 @@
-Lotus
-=====
+The Lotus Compiler
+==================
 
 Lotus is the first reference compiler for HBIR that is currently under
 development. The current implementation allows very basic HBIR programs
