@@ -11,6 +11,7 @@ release = ''
 
 # Source options.
 extensions = [
+    'recommonmark',
 ]
 source_suffix = ['.rst', '.md']
 master_doc = 'index'
