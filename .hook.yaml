@@ -1,0 +1,1 @@
+deploy: onbuild make -C docs deploy
