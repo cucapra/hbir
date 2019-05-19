@@ -23,6 +23,10 @@
 				{
 					"name": "string.xml.hbir",
 					"match": "\\b(target|config|data|code)\\b"
+				},
+				{
+					"name":  "comment.line",
+					"match": "//([^\n\r]*)"
 				}
 			]
 		},
