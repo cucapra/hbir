@@ -222,7 +222,7 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
     | (_, c, d, _) -> (
         let tile_bounds = f1_get_num_tiles(c) in
         match d with
-        | (sl, dmaps) ->
+        | (sl, dmaps, _) ->
                 (f1_main gen_wrapper dmaps) ^   
                 (* get dmaps intended to be send in different directions *)
                 let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
@@ -247,7 +247,7 @@ let generate_f1_wrapper_header (prog : program) : string =
     match prog with
     | (_, _, d, _) -> 
         match d with 
-        | (_, dmaps) ->
+        | (_, dmaps, _) ->
                 let kernel_name = "hbir_kernel" in
                 let unique_def_name = "___" ^ kernel_name ^ "___" in
                 "#ifndef " ^ unique_def_name ^ "\n" ^

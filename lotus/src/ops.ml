@@ -37,6 +37,7 @@ let pretty_stmt (s : stmt) : string =
     | If (_,_,_) -> "if "
     | While (_,_) -> "while "
     | For (_,_) -> "for "
+    | For_Infer (_,_) -> "for "
     | Break _ -> "break "
     | Print s -> "print(" ^ s ^ ")"
     | BsgFinish -> "bsg_finish()"
@@ -97,7 +98,7 @@ let pretty_program (p : program) : string =
                       "config group " ^ s1 ^ " with dim " ^ (pretty e1) ^ ", " ^ (pretty e2))
         ) ^ "\n" ^
         (match data with
-        | (_, _) -> "data with dim " (*^ (pretty d)*)
+        | (_, _, _) -> "data with dim " (*^ (pretty d)*)
         ) ^ "\n" ^
         (match code with
         | (_, codeList) -> "code with " ^ (pretty_codelist codeList)

@@ -43,7 +43,12 @@ rule token =
     | "local"       { LOCAL }
     | "host"        { HOST }
     | "device"      { DEVICE }
+
+    (* data distribution keywords *)
     | "chunked"     { CHUNK }
+    | "strided"     { STRIDE }
+    | "custom"      { CUSTOM_DIST }
+
     | "volatile"    { VOLATILE }
 
     | "config"      { CONFIG }
@@ -59,10 +64,16 @@ rule token =
     | "data"        { DATA }
 
     | "code"        { CODE }
+    | "layout"      { LAYOUT }
 
     (* SPMD Keywords *)
+
+    (* iterators *)
     | "while"       { WHILE }
     | "for"         { FOR }
+    | "iterator"    { ITERATOR }
+    | "in"          { IN }
+
     | "if"          { IF }
     | "else"        { ELSE }
     | "return"      { RETURN }
