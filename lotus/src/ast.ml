@@ -58,6 +58,11 @@ type expr =
     | And of expr * expr
     | Or of expr * expr
 
+
+(* inferred iterator from data section into the code section *)
+(* iterator name (i) ~ bounds ~ layout name ~ coord x ~ coord y *)
+type inferred_iterator = string * expr * string * expr * expr
+
 (* spmd *)
 type stmt =
     (*| Decl of *)
@@ -69,6 +74,7 @@ type stmt =
     | If of if_block * (if_block list) * ((stmt list) option)
     | While of expr * (stmt list) (* condition * while-block *)
     | For of (stmt * expr * (string * expr)) * (stmt list)
+    | For_Infer of inferred_iterator * stmt list
     | Break of string
     | Print of string
     | BsgFinish
@@ -113,6 +119,19 @@ type group_decl =
 
 type code = tile * stmt list
 
+(* data distribution policy *)
+type dist_policy = 
+    | Chunked
+    | Strided
+    (* if custom than allow code to be written there {} *)
+    | Custom
+
+(* memory layout that multiple data maps can share *)
+(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ 
+   [x] ~ [y] ~ *)
+(* layout name ~ physical storage (TODO: default to global no coords) ~ distribution ~ transfer type*)
+type data_layout = string * mem_type * dist_policy
+
 (* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ type (int/float) ~ 
    [x] ~ [y] ~ *)
 type data_map = mem_type * mem_location * string * generic_type * (expr * expr option) * (string * string option)
@@ -127,10 +146,11 @@ type config_decl = group_decl list
 
 (* TODO: need to add mem list *)
 (* data sections *)
-type data_decl = data_stmt list * data_maps
+type data_decl = data_stmt list * data_maps * data_layout option
 
 type code_decl = ((stmt list) option) * code list
 
 (* program *)
 (* Consists of target, config, data, and code sections *)
 type program = target_decl * config_decl * data_decl * code_decl
+

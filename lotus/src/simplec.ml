@@ -54,6 +54,7 @@ and convert_stmt (s : stmt) : string =
     | While (e,sl) -> "while ( " ^ (convert_expr e) ^ " ) {\n" ^ (convert_stmtlist sl) ^ "}\n"
     | For ((s1,e1,(i,e2)),sl) -> "for (" ^ (convert_stmt s1) ^ " " ^ (convert_expr e1) ^ "; " ^ i ^ "=" ^ (convert_expr e2) ^ ") {\n" ^
                             (convert_stmtlist sl) ^ "}\n"
+    | For_Infer (_,_) -> "Not implemented :p"
     | Break _ -> "break "
     | Print s -> "printf(" ^ s ^ ");\n"
     | BsgFinish -> "bsg_finish();\n"

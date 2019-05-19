@@ -11,11 +11,23 @@ open Ast
 %token <string> WDECL
 %token TILE
 %token UNKNOWN
+
+(* layout tokens *)
+%token LAYOUT
+
+(* memory location tokens *)
 %token GLOBAL
 %token LOCAL
+
+(* memory transfer direction tokens *)
 %token HOST
 %token DEVICE
+
+(* memory layout tokens *)
 %token CHUNK
+%token STRIDE
+%token CUSTOM_DIST
+
 %token VOLATILE
 
 %token CONFIG
@@ -32,12 +44,16 @@ open Ast
 
 %token CODE
 
-(* float types *)
 
 (* SPMD Keywords *)
+
+(* iterator keywords *)
 %token WHILE
-%token IF
 %token FOR
+%token IN
+%token ITERATOR
+
+%token IF
 %token ELSE
 %token RETURN
 %token INT
@@ -180,9 +196,12 @@ group:
 (* code in the data section -> parse a mix of dimension decl and data map decls *)
 (* prob only want to allow subset of the language! *)
 data:
-    (* TODO: Remove hard-coded dimension, allow arbitrary statements here  *)
+    (* TODO: Allow in any order, need to make into list parse where list can contain
+    any of the fields below!  *)
     | DATA; LEFT_BRACE; sl = dataStmtList; dl = dataMaps; RIGHT_BRACE
-        { (sl, dl) }
+        { (sl, dl, None) }
+    | DATA; LEFT_BRACE; sl = dataStmtList; ly = layoutStmt; dl = dataMaps; RIGHT_BRACE
+        { (sl, dl, Some ly) }
 
 memType:
     | GLOBAL; SEMICOLON
@@ -195,6 +214,12 @@ memLocation:
         { Host }
     | DEVICE; SEMICOLON
         { Device }
+
+distributePolicy:
+    | CHUNK; SEMICOLON
+        { Chunked }
+    | STRIDE; SEMICOLON
+        { Strided }
 
 (* TODO: Currently hard-code chunked memory type *)
 (* TODO: Seems like we should be able to reuse some parsing chunks rather than repeat *)
@@ -278,6 +303,16 @@ dataStmtList:
     | s1 = dataStmtList; s2 = dataStmt
         {s1@(s2::[]) }
 
+(* define how one would parse a layout stmt *)
+layoutStmt :
+    | LAYOUT; layout_name = ID; LEFT_BRACE; mt = memType; dp = distributePolicy; RIGHT_BRACE; SEMICOLON
+        { (layout_name, mt, dp) }
+
+(* parse an inferred iterator line *)
+iteratorStmt :
+    | INT; iterSym = ID; IN; ITERATOR; LT; bnd = expr; COMMA; layoutSym = ID; COMMA; xArg = expr; COMMA; yArg = expr; GT
+        { iterSym, bnd, layoutSym, xArg, yArg }
+
 elseIfList:
     | e = elseIf
         { e::[] }
@@ -350,6 +385,11 @@ stmt:
         {While(e, sl) }
     | FOR; LEFT_PAREN; s1 = stmt; e1 = expr; SEMICOLON; i = ID; EQ; e2=expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE
         { For((s1, e1, (i,e2)), sl) }
+
+    (* inferred interator parsing *)
+    | FOR; LEFT_PAREN; iter = iteratorStmt; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE
+        { For_Infer( iter, sl ) }
+
     | PRINTF; LEFT_PAREN; s = STR; RIGHT_PAREN; SEMICOLON
         { Print s }
     | BSG_FINISH; LEFT_PAREN; RIGHT_PAREN; SEMICOLON
