@@ -1,0 +1,209 @@
+target{
+    memory g[4]{
+        size 8G;
+        width 8B;
+    };
+
+    tile t[4][4] {
+        memory l{
+            size 4K;
+            width 32B;
+        }
+    };
+
+    // list available acceleration structures
+    matmul m[1][1] {
+        // <required> this tells the compiler how it should load stuff
+        // # are fixed parameters of the accel
+        // then io
+        signature #(int t = 4, int m = 4, int n = 4)
+            (input int[m][t] A, input int[t][n] B, output int[m][n] C) {
+
+            // <optional> specify the communication interface? i.e. prefetching for it
+            // if the accel employs a reuse pattern want to reflect that here
+            // i.e. if B is resued then don't need to fetch as often
+
+            // like os scheduling, will try to place these in the code at this granularity
+            // with best effort, will generally not be perfect, but will try
+            prefetch A[m][t] every 4 cycles;
+            prefetch B[t][n] every 10 cycles;
+            receive C[m][n] every 4 cycles;
+
+            // if not a fixed speed, maybe can use val/rdy event triggers?
+
+        }
+
+        // <optional> define the computation in terms of cpu ops in case we need to fallback to it
+        // this has the same semantics as the code section EXCEPT can't call cells in the target section
+        compute {
+            for(int j = 0; j < m; j=j+1){
+                for(int i = 0; i < n; i=i+1){
+                    for(int k = 0; k < t; k=k+1){
+                        C[j][i] += A[j][k] * B[k][i];
+                    }
+                }
+            }
+        }
+
+        // <optional> this accel potentially has some internal memory
+        memory matpad {
+            size 4K;
+            width 16B;
+        }
+    };
+}
+
+// in the compute group, we let the compiler know it can use the matmul we defined in the target section
+config{
+    group tg[4][3] {
+        tile target.t[x][y];
+
+        // the group has a matmul unit in it as well
+        matmul target.m;
+    };
+}
+
+// global data structure whose dimension is not related to matmul parameters
+data{
+    // declare important dimensions
+    m = 16;
+    n = 16;
+    t = 16;
+
+    // declare matrix layout in memory
+    layout ml {
+        chunked[target.g[x]][target.g[x]];
+    }
+
+    // declare matrices
+    A: int[m][t] -> ml;
+
+    B: int[t][n] -> ml;
+
+    C: int[m][n] <- ml;
+
+    // also put chunks of this into spad memory?
+}
+
+// what computation we want to run
+code{
+    config.tg[x][y]{
+
+        // infer how many times we need to run this based on the sizes of A,B
+
+        for(int j in iterator<m, ml, x, y>){
+
+            for(int i in iterator<n, ml, x, y>){
+
+                for(int k in iterator<t, ml, x, y>){
+
+                    C[j][i] += m.matmul[1][1] ( A[j][k] , B[k][i] );
+
+                    // maybe write accum code here
+                }
+            }
+        }
+    
+        bsg_finish();
+
+    }
+}
+
+synth_single_core {
+    // blocking based on sample in 
+    // https://stackoverflow.com/questions/15829223/loop-tiling-blocking-for-large-dense-matrix-multiplication
+
+    // we envision our future compiler to synthesize the following by inference informed by other 3 sections
+
+    // blk size inferred from hardware signature
+    int blk = 4;
+
+    // block the orignal three loops? (1 loop?)
+    for(int j = 0; j < m; j += blk){       
+
+        for(int i = 0; i < n; i += blk){
+
+            for(int k = 0; k < t; k += blk){
+
+                // -----------------------------
+                // accumulate within a block
+                // -----------------------------
+
+                /*
+                // cpu code
+                // bounds for the blk, iter + blk size unless out of bounds
+                int jb_end = j + blk > m ? m : j + blk;
+                int ib_end  = "";
+                int kb_end = "";
+                for (int ib = i; ib < ib_end; ib++) {
+                    for (int jb = j; jb < jb_end; jb++) {
+                        for (int kb = k; k < kb_end; kb++) {
+                            C[jb][ib] += A[jb][kb] * B[kb][ib];
+                        }
+                    }
+                }
+                */
+
+                // we know to provide data from A and B because we said so in code section
+                // we know what rate we should try to provide the data because it's specified in accel signature
+                // we know to acumm into C b/c we said so in code section
+                // we know the rate to receive data at because it's specified in accel signature
+
+                nop;
+                A_blk = accel_load A[blk][blk];
+
+                nop;
+                nop;
+                B_blk = accel_load B[blk][blk];
+
+                nop;
+                nop; // in more complex codes can try to put non-dependent instructions here
+                nop;
+                nop;
+                psum[blk][blk] = accel_store C_blk[blk][blk];
+
+                // accumlate into C on the CPU?
+                for (int jb = 0; jb < blk; jb++) {
+                    for (int ib = 0; ib < blk; ib++) {
+                        C[j+jb][i+ib] += psum[j][i];
+                    }
+                }
+
+            }
+        }
+    }
+}
+
+
+// similar to above but includes useful iterator over spatial data map
+// inference from both the data AND target section possible (AND the config as well!)
+synth_multi_core {
+    
+    for(int i in iterator<m, ml, x, y, tg>)
+
+    // -->
+
+    // in the case of chunked memory
+    int mem_idx = x + y * tg.x_len * chunk_len(m, ml);
+    for(int i = mem_idx; i < mem_idx + chunk_len; i++);
+
+    // in the case of strided memory
+    int i0 = x + y * tg.x_len;
+    int stride = tg.x_len * tg.y_len;
+    for(int i = i0; i < m; i++stride);
+
+
+    //
+    // in combination with target section  (??)
+    //
+
+    int mem_idx = x + y * tg.x_len * chunk_len(m, ml);
+    for(int j = mem_idx; j < mem_idx + chunk_len; j += blk);  
+
+    int i0 = x + y * tg.x_len;
+    int stride = tg.x_len * tg.y_len * blk;
+    for(int i = i0; i < m; i++stride);
+
+
+
+}
