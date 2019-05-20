@@ -1,9 +1,45 @@
+// This example illustrates the near-term goals for the HammerBlade IR (HBIR).
+// Many syntax and features present here likely don't work in the current implementation.
+
+
+// ----------------------------------------------------------------------------
+// Code Section: The algorithm we want to run. Compilation is informed by the other 3 sections
+// ----------------------------------------------------------------------------
+code{
+    config.tg[x][y]{
+
+        // infer how many times we need to run the loops based on the sizes of layouts
+
+        for(int j in iterator<m, ml, x, y>){
+
+            for(int i in iterator<n, ml, x, y>){
+
+                for(int k in iterator<t, ml, x, y>){
+                    
+                    // *** we 'call' the hardware structure we want to use like a function
+                    C[j][i] += m.matmul[1][1] ( A[j][k] , B[k][i] );
+
+                    // maybe write accum code here
+                }
+            }
+        }
+    
+        bsg_finish();
+
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Target Section: Specify what hardware resources are present in the chip (at design time or compile time)
+// ----------------------------------------------------------------------------
 target{
+    // declare global memory
     memory g[4]{
         size 8G;
         width 8B;
     };
 
+    // declare available tiles
     tile t[4][4] {
         memory l{
             size 4K;
@@ -11,30 +47,24 @@ target{
         }
     };
 
+    // ----------------------------------------------------------------------------
     // list available acceleration structures
+    // ----------------------------------------------------------------------------
+
+    // Cornell dense matrix multiply accelerator
     matmul m[1][1] {
-        // <required> this tells the compiler how it should load stuff
-        // # are fixed parameters of the accel
-        // then io
+        // <required> this tells the compiler how it should load stuff to accel
         signature #(int t = 4, int m = 4, int n = 4)
             (input int[m][t] A, input int[t][n] B, output int[m][n] C) {
 
-            // <optional> specify the communication interface? i.e. prefetching for it
-            // if the accel employs a reuse pattern want to reflect that here
-            // i.e. if B is resued then don't need to fetch as often
-
-            // like os scheduling, will try to place these in the code at this granularity
-            // with best effort, will generally not be perfect, but will try
+            // compiler will try to insert communication instructions to accel with best effort (??)
             prefetch A[m][t] every 4 cycles;
             prefetch B[t][n] every 10 cycles;
             receive C[m][n] every 4 cycles;
 
-            // if not a fixed speed, maybe can use val/rdy event triggers?
-
         }
 
         // <optional> define the computation in terms of cpu ops in case we need to fallback to it
-        // this has the same semantics as the code section EXCEPT can't call cells in the target section
         compute {
             for(int j = 0; j < m; j=j+1){
                 for(int i = 0; i < n; i=i+1){
@@ -51,9 +81,13 @@ target{
             width 16B;
         }
     };
+
+    // potentially others that can be configured at runtime
 }
 
-// in the compute group, we let the compiler know it can use the matmul we defined in the target section
+// ----------------------------------------------------------------------------
+// Configuration Section: Devote hardware resources to a computation
+// ----------------------------------------------------------------------------
 config{
     group tg[4][3] {
         tile target.t[x][y];
@@ -63,7 +97,10 @@ config{
     };
 }
 
-// global data structure whose dimension is not related to matmul parameters
+// ----------------------------------------------------------------------------
+// Data Section: Specify memory layout of buffers across available memories.
+// ----------------------------------------------------------------------------
+// somewhat similar to the "schedule" in halide. the location of the data might dictate how compute is scheduled (blocked)
 data{
     // declare important dimensions
     m = 16;
@@ -85,74 +122,30 @@ data{
     // also put chunks of this into spad memory?
 }
 
-// what computation we want to run
-code{
-    config.tg[x][y]{
 
-        // infer how many times we need to run this based on the sizes of A,B
 
-        for(int j in iterator<m, ml, x, y>){
+// ----------------------------------------------------------------------------
+// Anticipated compilation behavior
+// ----------------------------------------------------------------------------
 
-            for(int i in iterator<n, ml, x, y>){
-
-                for(int k in iterator<t, ml, x, y>){
-
-                    C[j][i] += m.matmul[1][1] ( A[j][k] , B[k][i] );
-
-                    // maybe write accum code here
-                }
-            }
-        }
-    
-        bsg_finish();
-
-    }
-}
-
+// we envision our future compiler to synthesize the following by inference informed by other 3 sections
+// here's what the code might look like
 synth_single_core {
-    // blocking based on sample in 
-    // https://stackoverflow.com/questions/15829223/loop-tiling-blocking-for-large-dense-matrix-multiplication
-
-    // we envision our future compiler to synthesize the following by inference informed by other 3 sections
-
     // blk size inferred from hardware signature
     int blk = 4;
 
-    // block the orignal three loops? (1 loop?)
+    // block the orignal three loops
     for(int j = 0; j < m; j += blk){       
 
         for(int i = 0; i < n; i += blk){
 
             for(int k = 0; k < t; k += blk){
 
-                // -----------------------------
-                // accumulate within a block
-                // -----------------------------
-
-                /*
-                // cpu code
-                // bounds for the blk, iter + blk size unless out of bounds
-                int jb_end = j + blk > m ? m : j + blk;
-                int ib_end  = "";
-                int kb_end = "";
-                for (int ib = i; ib < ib_end; ib++) {
-                    for (int jb = j; jb < jb_end; jb++) {
-                        for (int kb = k; k < kb_end; kb++) {
-                            C[jb][ib] += A[jb][kb] * B[kb][ib];
-                        }
-                    }
-                }
-                */
-
-                // we know to provide data from A and B because we said so in code section
-                // we know what rate we should try to provide the data because it's specified in accel signature
-                // we know to acumm into C b/c we said so in code section
-                // we know the rate to receive data at because it's specified in accel signature
-
-                nop;
+                // ----------------------------------------------------------------------------
+                // accumulate within a block i.e. use the accel structure
+                // ----------------------------------------------------------------------------
                 A_blk = accel_load A[blk][blk];
 
-                nop;
                 nop;
                 B_blk = accel_load B[blk][blk];
 
@@ -162,7 +155,8 @@ synth_single_core {
                 nop;
                 psum[blk][blk] = accel_store C_blk[blk][blk];
 
-                // accumlate into C on the CPU?
+                // stretch goal!
+                // accumlate into C buffer on a CPU
                 for (int jb = 0; jb < blk; jb++) {
                     for (int ib = 0; ib < blk; ib++) {
                         C[j+jb][i+ib] += psum[j][i];
@@ -175,8 +169,7 @@ synth_single_core {
 }
 
 
-// similar to above but includes useful iterator over spatial data map
-// inference from both the data AND target section possible (AND the config as well!)
+// how to transform code based on the data layout and the target 
 synth_multi_core {
     
     for(int i in iterator<m, ml, x, y, tg>)

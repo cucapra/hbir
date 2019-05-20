@@ -1,6 +1,5 @@
 lib: [
   "_build/install/default/lib/lang-start/META" {"META"}
-  "_build/install/default/lib/lang-start/dune-package" {"dune-package"}
   "_build/install/default/lib/lang-start/opam" {"opam"}
 ]
 bin: [
