@@ -6,7 +6,7 @@ COMPILE = $(BUILD) && $(RUN_F1)
 default: collab-filter
 
 vvadd: 
-	$(COMPILE) examples/f1-benchmarks/vvadd.hbir
+	$(COMPILE) -wrapper examples/f1-benchmarks/vvadd.hbir
 
 gemm:
 	$(COMPILE) -wrapper examples/f1-benchmarks/gemm.hbir
