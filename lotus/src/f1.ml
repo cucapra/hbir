@@ -1,5 +1,6 @@
 open Ast
 open Manycore
+open Layouts
 
 (* PBB add a third function here to generate host.c. will punt on makefiles for now *)
 (* we want to base this off the data section so do (_,_,d,_). don't care about other 3 section and write data section to variable 'd' *)
@@ -278,3 +279,10 @@ let generate_f1_makefile (prog : program) : string =
                         match m2 with
                             | None -> ""
                             | Some mem -> match mem with (_, _, (_, _)) -> ""
+
+
+(* any preprocessing before actually doing the compilation, like constructing the symbol table or static analysis? *)
+let preprocessing_phase (prog : program) =
+    match prog with
+    | (_, _, d, _) -> 
+        (generate_layout_symbol_table d)

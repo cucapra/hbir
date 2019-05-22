@@ -1,5 +1,3 @@
-open Layouts
-
 (* types *)
 type hbir_type =
     | MemoryType of int
@@ -79,11 +77,11 @@ type data_stmt =
     (*| Decl of *)
     | Assign of string * expr
 
-(* 2d helper functions, TODO be generic and take in expr option list *)
-let apply_to_expr_option (expr_option : expr option) (default : string) (func : expr -> string) : string =
-    match expr_option with
+(* Helper functions *)
+let apply_to_option (b_option : 'b option) (default : 'a) (func : 'b -> 'a) : 'a =
+    match b_option with
         | None -> default
-        | Some extracted_expr -> func extracted_expr
+        | Some extracted_b -> func extracted_b
 
 
 (* hbir *)
@@ -111,6 +109,34 @@ type group_decl =
     | GroupStmt of (string * (expr * expr) * group_block)
 
 type code = tile * stmt list
+
+
+(************************************************************** 
+
+Data layout typedefs
+
+****************************************************************)
+
+type mem_type =
+    | Global
+    | Local
+
+type mem_location =
+    | Host
+    | Device
+
+(* data distribution policy *)
+type dist_policy = 
+    | Chunked
+    | Strided
+    (* if custom than allow code to be written there {} *)
+    | Custom
+
+(* memory layout that multiple data maps can share *)
+(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ 
+   [x] ~ [y] ~ *)
+(* layout name ~ physical storage (TODO: default to global no coords) ~ distribution ~ transfer type*)
+type data_layout = string * mem_type * dist_policy
 
 (* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ type (int/float) ~ 
    [x] ~ [y] ~ *)

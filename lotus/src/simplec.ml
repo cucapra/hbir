@@ -15,7 +15,7 @@ let rec convert_expr (e : expr) : string =
     | X -> "x"
     | Y -> "y"
     | Mem (i, d1, d2) -> i ^ "[" ^ (convert_expr d1) ^ "]" ^
-        (apply_to_expr_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+        (apply_to_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
     | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"
     | Times (e1, e2) -> "("^(convert_expr e1) ^ " * " ^ (convert_expr e2)^")"
@@ -43,7 +43,7 @@ and convert_stmt (s : stmt) : string =
     | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
     | MemAssign ((symbol, dim_1, dim_2), expr2) ->
         symbol ^ "[" ^ (convert_expr dim_1) ^ "]" ^
-        (apply_to_expr_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+        (apply_to_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
         ^ ("= ") ^ (convert_expr expr2) ^ ";"
     | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
     | If (i,il,s) -> (

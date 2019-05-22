@@ -34,7 +34,7 @@ let rec convert_expr (e : expr) : string =
     | Y -> "y"
     | Id i -> i
     | Mem (i, d1, d2) -> i ^ "[" ^ (convert_expr d1) ^ "]" ^
-        (apply_to_expr_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+        (apply_to_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
     | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"
     | Times (e1, e2) -> "("^(convert_expr e1) ^ " * " ^ (convert_expr e2)^")"
@@ -56,15 +56,8 @@ let rec convert_iblist (il : if_block list) : string =
     | [] -> ""
     | i::it -> "else " ^ (convert_ib i) ^ (convert_iblist it)
 
-(* TODO: don't cheat here *)
-(*and find_data_layout_by_symbol (name : string) (layouts : data_layout list) : data_layout =
-    match layouts with
-    | [] -> (name,Global, Chunked)
-    | _::lt -> (find_data_layout_by_symbol name lt)*)
-
+(* synthesize an access pattern based on the user specified data layout *)
 and convert_inferred_iter (iter : inferred_iterator): string =
-    (* TODO acutally get the real layout list *)
-    
     match iter with
     | (iterName, dim, layoutName, x, y) -> (
         let dlyt : data_layout = (find_data_layout_by_symbol layoutName) in
@@ -99,7 +92,7 @@ and convert_stmt (s : stmt) : string =
     | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
     | MemAssign ((symbol, dim_1, dim_2), expr2) -> 
         symbol ^ "[" ^ (convert_expr dim_1) ^ "]" ^
-        (apply_to_expr_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+        (apply_to_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
         ^ ("= ") ^ (convert_expr expr2) ^ ";"
     | DeclAssign (str1, str2, expr) ->
         if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
@@ -136,7 +129,7 @@ and convert_dmaps (dmaps : data_map list) : string =
         | (mt, _, i, t, (dim_x, dim_y), (_, _), (_,_), (_,_,_), _) ->
             (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim_x) ^ "]" ^ 
             (* add the second dimension if it exists *)
-            (apply_to_expr_option dim_y "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+            (apply_to_option dim_y "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
             ^
             (
             match mt with

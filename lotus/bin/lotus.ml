@@ -32,6 +32,8 @@ let write_bsg (prog : program) : unit =
 let run_f1 : bool ref = ref false
 let set_f1 () : unit = run_f1 := true
 let write_f1 (prog : program) : unit =
+    (* do any preprocessing passes (like generating symbol tables) *)
+    let _ = (F1.preprocessing_phase prog) in
     let out_dir : string = "f1-gen" in
     let _ = Sys.command ("mkdir -p " ^ out_dir) in
     let ch1 = open_out (*f ^*) (out_dir ^ "/device.c") in

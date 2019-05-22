@@ -10,7 +10,7 @@ let rec pretty (e : expr) : string =
     | X -> "x"
     | Y -> "y"
     | Mem (i, d1, d2) -> i ^ pretty d1 ^
-        (apply_to_expr_option d2 "" (fun (d : expr) : string -> pretty d))
+        (apply_to_option d2 "" (fun (d : expr) : string -> pretty d))
     | Plus (e1, e2) -> (pretty e1) ^ " + " ^ (pretty e2)
     | Minus (e1, e2) -> (pretty e1) ^ " - " ^ (pretty e2)
     | Times (e1, e2) -> (pretty e1) ^ " * " ^ (pretty e2)
@@ -31,7 +31,7 @@ let pretty_stmt (s : stmt) : string =
     | Assign (str1, expr) -> str1 ^ ("= ") ^ (pretty expr)
     | MemAssign ((symbol, dim_1, dim_2), expr2) -> 
       symbol ^ (pretty dim_1) ^  
-      (apply_to_expr_option dim_2 "" (fun (d : expr) : string -> pretty d)) 
+      (apply_to_option dim_2 "" (fun (d : expr) : string -> pretty d)) 
       ^ ("= ") ^ (pretty expr2)
     | DeclAssign (_,_,_) -> "declAssign "
     | If (_,_,_) -> "if "
