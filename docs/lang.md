@@ -1,6 +1,13 @@
 The HBIR Language
 ================
 
+An HBIR program consists of four *segments:*
+
+* **target**: The machine model. This segment describes the set-in-stone silicon resources of the target hardware. An instance of this segment would ship with a particular instance of the HammerBlade hardware.
+* **config**: The system configuration. This part abstracts over the physical hardware resources to expose a virtual machine model for a given application or class of applications.
+* **data**: Memory allocations. The program describes how to lay out logical array-based data structures onto the machine configuration's memories.
+* **code**: The computation itself. This is where the algorithm itself lives.
+
 Segments
 --------
 
