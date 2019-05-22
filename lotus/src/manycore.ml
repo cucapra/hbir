@@ -67,7 +67,7 @@ and convert_inferred_iter (iter : inferred_iterator): string =
     
     match iter with
     | (iterName, dim, layoutName, x, y) -> (
-        let dlyt : data_layout = (find_data_layout_by_symbol layoutName []) in
+        let dlyt : data_layout = (find_data_layout_by_symbol layoutName) in
         match dlyt with
             | (_, _, dist_policy) ->
                 match dist_policy with
