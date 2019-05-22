@@ -1,3 +1,5 @@
+open Layouts
+
 (* types *)
 type hbir_type =
     | MemoryType of int
@@ -12,14 +14,6 @@ type generic_type =
     | BoolTyp
     | IntTyp
     | FloatTyp
-
-type mem_type =
-    | Global
-    | Local
-
-type mem_location =
-    | Host
-    | Device
 
 type sgmt =
     | Target
@@ -57,7 +51,6 @@ type expr =
     | Gteq of expr * expr
     | And of expr * expr
     | Or of expr * expr
-
 
 (* inferred iterator from data section into the code section *)
 (* iterator name (i) ~ bounds ~ layout name ~ coord x ~ coord y *)
@@ -118,19 +111,6 @@ type group_decl =
     | GroupStmt of (string * (expr * expr) * group_block)
 
 type code = tile * stmt list
-
-(* data distribution policy *)
-type dist_policy = 
-    | Chunked
-    | Strided
-    (* if custom than allow code to be written there {} *)
-    | Custom
-
-(* memory layout that multiple data maps can share *)
-(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ 
-   [x] ~ [y] ~ *)
-(* layout name ~ physical storage (TODO: default to global no coords) ~ distribution ~ transfer type*)
-type data_layout = string * mem_type * dist_policy
 
 (* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ type (int/float) ~ 
    [x] ~ [y] ~ *)

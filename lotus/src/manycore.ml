@@ -1,4 +1,5 @@
 open Ast
+open Layouts
 
 (* BSG Manycore backend to target Manycore RTL Simulator and F1 Instance *)
 (* Translates AST to C-like code and generates Makefile to run on Manycore *)
@@ -55,13 +56,11 @@ let rec convert_iblist (il : if_block list) : string =
     | [] -> ""
     | i::it -> "else " ^ (convert_ib i) ^ (convert_iblist it)
 
-
 (* TODO: don't cheat here *)
-and find_data_layout_by_symbol (name : string) (layouts : data_layout list) : data_layout =
+(*and find_data_layout_by_symbol (name : string) (layouts : data_layout list) : data_layout =
     match layouts with
     | [] -> (name,Global, Chunked)
-    | _::lt -> (find_data_layout_by_symbol name lt)
-
+    | _::lt -> (find_data_layout_by_symbol name lt)*)
 
 and convert_inferred_iter (iter : inferred_iterator): string =
     (* TODO acutally get the real layout list *)
