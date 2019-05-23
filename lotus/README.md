@@ -1,7 +1,7 @@
 Lotus
-================================
+=====
 
-Name is TBD. Maybe we shouldn't name this after a Blades of Glory reference.
+Lotus is a compiler for HBIR. Its name is totally a [*Blades of Glory*][bog] reference.
 
 We need to install two dependencies, [Dune][] and [Menhir][]:
 
@@ -23,3 +23,4 @@ Install a Lotus executable by running:
 [menhir]: http://gallium.inria.fr/~fpottier/menhir/
 [lexyacc]: https://caml.inria.fr/pub/docs/manual-ocaml/lexyacc.html
 [utop]: https://github.com/diml/utop
+[bog]: https://www.imdb.com/title/tt0445934/
