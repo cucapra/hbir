@@ -10,10 +10,12 @@ let rec convert_expr (e : expr) : string =
     | Literal _ -> "literal"
     | String str -> str
     | Int i -> string_of_int i
+    | Float i -> string_of_float i
     | Id i -> i
     | X -> "x"
     | Y -> "y"
-    | Mem (i, e) -> i ^ "[" ^ (convert_expr e) ^ "]"
+    | Mem (i, d1, d2) -> i ^ "[" ^ (convert_expr d1) ^ "]" ^
+        (apply_to_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
     | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"
     | Times (e1, e2) -> "("^(convert_expr e1) ^ " * " ^ (convert_expr e2)^")"
@@ -39,7 +41,10 @@ and convert_stmt (s : stmt) : string =
     match s with
     | Decl (str1, str2) -> str1 ^ " " ^ str2 ^ ";"
     | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
-    | MemAssign ((str1, expr1), expr2) -> str1 ^ "[" ^ (convert_expr expr1) ^ "]" ^ ("= ") ^ (convert_expr expr2) ^ ";"
+    | MemAssign ((symbol, dim_1, dim_2), expr2) ->
+        symbol ^ "[" ^ (convert_expr dim_1) ^ "]" ^
+        (apply_to_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+        ^ ("= ") ^ (convert_expr expr2) ^ ";"
     | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
     | If (i,il,s) -> (
         match s with
@@ -49,6 +54,7 @@ and convert_stmt (s : stmt) : string =
     | While (e,sl) -> "while ( " ^ (convert_expr e) ^ " ) {\n" ^ (convert_stmtlist sl) ^ "}\n"
     | For ((s1,e1,(i,e2)),sl) -> "for (" ^ (convert_stmt s1) ^ " " ^ (convert_expr e1) ^ "; " ^ i ^ "=" ^ (convert_expr e2) ^ ") {\n" ^
                             (convert_stmtlist sl) ^ "}\n"
+    | For_Infer (_,_) -> "Not implemented :p"
     | Break _ -> "break "
     | Print s -> "printf(" ^ s ^ ");\n"
     | BsgFinish -> "bsg_finish();\n"

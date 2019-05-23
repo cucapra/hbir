@@ -1,0 +1,46 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "hbir",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.hbir",
+					"match": "\\b(if|while|for|return)\\b"
+				},
+				{
+					"name": "storage.type.hbir",
+					"match" : "\\b(int|float|bool)\\b"
+				},
+				{
+					"name": "string.xml.hbir",
+					"match": "\\b(target|config|data|code)\\b"
+				},
+				{
+					"name":  "comment.line",
+					"match": "//([^\n\r]*)"
+				}
+			]
+		},
+		"strings": {
+			"name": "string.quoted.double.hbir",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.hbir",
+					"match": "\\\\."
+				}
+			]
+		}
+	},
+	"scopeName": "source.hbir"
+}

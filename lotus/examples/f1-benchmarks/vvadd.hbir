@@ -16,7 +16,12 @@ config{
 }
 
 data{
-    const dim = 160;
+    dim = 160;
+
+    layout lat {
+        global;
+        chunked;
+    };
 
     g_src0: int[dim] = block[target.g.x_max] {
         target.g[x];
@@ -42,7 +47,8 @@ data{
 
 code{
     config.tg[x][y]{
-        for(int i = x+(y*x_max); i<csize; i=i+1){
+        //for(int i = x+(y*x_max); i<csize; i=i+1){
+        for (int i in iterator<dim, lat, x, y>) {
             g_dest[i] = g_src0[i] + g_src1[i];
         }
         

@@ -1,4 +1,5 @@
 open Ast
+open Layouts
 
 (* BSG Manycore backend to target Manycore RTL Simulator and F1 Instance *)
 (* Translates AST to C-like code and generates Makefile to run on Manycore *)
@@ -28,10 +29,12 @@ let rec convert_expr (e : expr) : string =
         | YMax -> "y_max")
     | String str -> str
     | Int i -> string_of_int i
+    | Float i -> string_of_float i
     | X -> "x"
     | Y -> "y"
     | Id i -> i
-    | Mem (i, e) -> i ^ "[" ^ (convert_expr e) ^ "]"
+    | Mem (i, d1, d2) -> i ^ "[" ^ (convert_expr d1) ^ "]" ^
+        (apply_to_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
     | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
     | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"
     | Times (e1, e2) -> "("^(convert_expr e1) ^ " * " ^ (convert_expr e2)^")"
@@ -53,14 +56,47 @@ let rec convert_iblist (il : if_block list) : string =
     | [] -> ""
     | i::it -> "else " ^ (convert_ib i) ^ (convert_iblist it)
 
+(* synthesize an access pattern based on the user specified data layout *)
+and convert_inferred_iter (iter : inferred_iterator): string =
+    match iter with
+    | (iterName, dim, layoutName, x, y) -> (
+        let dlyt : data_layout = (find_data_layout_by_symbol layoutName) in
+        match dlyt with
+            | (_, _, dist_policy) ->
+                match dist_policy with
+                | Chunked -> (
+                    let chunk_size_iter = "chunked_size_" ^ iterName in
+                    let chunk_start_iter = "chunked_mem_start_" ^ iterName in
+                    "int " ^ chunk_size_iter ^ " = " ^ (convert_expr dim) ^ "/(bsg_tiles_X * bsg_tiles_Y);\n" ^
+                    
+                    (* last one should do a lil' more *)
+                    "if ((" ^ (convert_expr x) ^ " + " ^ (convert_expr y) ^ " * bsg_tiles_X) == num_tiles - 1) {\n" ^
+                    chunk_size_iter ^ " += " ^ (convert_expr dim) ^ " % num_tiles;\n" ^
+                    "}\n" ^
+
+
+                    "int " ^ chunk_start_iter ^ " = (" ^ (convert_expr x) ^ " * " ^
+                    (convert_expr y) ^ " * " ^ "bsg_tiles_X" ^ ") * " ^ chunk_size_iter ^ ";\n" ^
+
+                    "for (int " ^ iterName ^ " = " ^ chunk_start_iter ^ "; " ^ iterName ^ 
+                    " < " ^ chunk_start_iter ^ " + " ^ chunk_size_iter ^ "; " ^ iterName ^ "++) {\n" 
+                )
+                | Strided -> ":p\n"
+                | Custom -> ":q\n"
+
+    )
+
 and convert_stmt (s : stmt) : string =
     match s with
     | Decl (str1, str2) -> str1 ^ " " ^ str2 ^ ";"
     | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
-    | MemAssign ((str1, expr1), expr2) -> str1 ^ "[" ^ (convert_expr expr1) ^ "]" ^ ("= ") ^ (convert_expr expr2) ^ ";"
-    | DeclAssign (str1, str2, expr) ->
-        if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
-        else str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
+    | MemAssign ((symbol, dim_1, dim_2), expr2) -> 
+        symbol ^ "[" ^ (convert_expr dim_1) ^ "]" ^
+        (apply_to_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+        ^ ("= ") ^ (convert_expr expr2) ^ ";"
+    | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
+        (*if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
+        else str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"*)
     | If (i,il,s) -> (
         match s with
         | None -> ((convert_ib i) ^ (convert_iblist il))
@@ -68,6 +104,8 @@ and convert_stmt (s : stmt) : string =
         )
     | While (e,sl) -> "while ( " ^ (convert_expr e) ^ " ) {\n" ^ (convert_stmtlist sl) ^ "}\n"
     | For ((s1,e1,(i,e2)),sl) -> "for (" ^ (convert_stmt s1) ^ " " ^ (convert_expr e1) ^ "; " ^ i ^ "=" ^ (convert_expr e2) ^ ") {\n" ^
+                            (convert_stmtlist sl) ^ "}\n"
+    | For_Infer (iter, sl) -> (convert_inferred_iter iter) ^
                             (convert_stmtlist sl) ^ "}\n"
     | Break _ -> "break "
     | Print s -> "bsg_printf(" ^ s ^ ");\n"
@@ -88,8 +126,12 @@ and convert_dmaps (dmaps : data_map list) : string =
     | [] -> "//empty dmaps list\n"
     | d::dt -> (
         match d with
-        | (mt, _, i, t, (dim1, _), (_, _), (_,_), (_,_,_), _) ->
-            (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim1) ^ "]" ^ (
+        | (mt, _, i, t, (dim_x, dim_y), (_, _), (_,_), (_,_,_), _) ->
+            (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim_x) ^ "]" ^ 
+            (* add the second dimension if it exists *)
+            (apply_to_option dim_y "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+            ^
+            (
             match mt with
             | Global -> " __attribute__ ((section (\".dram\")));"
             | Local -> ";"
@@ -98,21 +140,33 @@ and convert_dmaps (dmaps : data_map list) : string =
 
 and convert_target (prog : program) : string =
     match prog with
-    | (t, _, d, _) ->
-        let memsize = match d with
-                      | (e, _) -> (convert_expr e) in
+    | (t, _, _, _) ->
+        (*let memsize = match d with
+                      | (e, _) -> (convert_expr e) in*)
         (*TODO: Hard-code chunk size for now*)
         match t with
         | (_, (_, (_, _), _)) ->
             "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" ^
-            "volatile int csize = " ^ memsize ^ "/(bsg_tiles_X * bsg_tiles_Y);\n"
+            "int x = bsg_x;\n" ^
+            "int y = bsg_y;\n"
+            (*"volatile int csize = " ^ memsize ^ "/(bsg_tiles_X * bsg_tiles_Y);\n"*)
+
+and convert_data_stmt (s : data_stmt) : string =
+    match s with
+    | Assign (str1, expr) -> "#define " ^ str1 ^ " " ^ (convert_expr expr)
+
+(* stmt list that shows ups in the data section, but throw define in front of everything *)
+and convert_data_stmtlist (sl : data_stmt list) =
+    match sl with
+    | [] -> ""
+    | s::st -> ((convert_data_stmt s)  ^ "\n" ^ (convert_data_stmtlist st))
 
 (* TODO: Remove hard-coding *)
 and convert_mem (prog : program) : string =
     match prog with
     | (_, _, d, _) ->
         match d with
-        | (e, dmaps) -> "#define dim " ^ (convert_expr e) ^ "\n" ^ (convert_dmaps dmaps)
+        | (sl, dmaps, _) -> (convert_data_stmtlist sl) ^ "\n" ^ (convert_dmaps dmaps)
 
 and convert_codelist (cl : code list) : string =
     match cl with
@@ -122,8 +176,8 @@ and convert_codelist (cl : code list) : string =
         | (_, (e1, e2)) ->
          (if (e1 == X && e2 == Y) then
             ((*TODO: replace with function call, and grab code and use as function before-hand, hard-code last tile handling chunk*)
-            "if(tile_id == num_tiles-1){\n" ^
-            "csize = csize + ( dim % num_tiles );\n}\n" ^
+            (*"if(tile_id == num_tiles-1){\n" ^
+            "csize = csize + ( dim % num_tiles );\n}\n" ^*)
             (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct))
          else
             (convert_codelist(ct) ^ "if(tile_id == bsg_x_y_to_id(" ^ (convert_expr e1) ^ ", " ^ (convert_expr e2) ^ ")){\n" ^

@@ -1,3 +1,5 @@
+(* Define the symbols from parser.mly *)
+
 {
 open Parser
 }
@@ -18,6 +20,8 @@ let twos = ['1' '2' '4' '8']
 let size = (twos | st | tt | sf | ote | tfs | ft) sizePrefix
 let width = (twos | st | tt | sf | ote | tfs | ft) b
 let number = '-'? digit digit*
+(* https://stackoverflow.com/questions/12643009/regular-expression-for-floating-point-numbers *)
+let float_number = ['0'-'9']+(['.']['0'-'9']*)?|['.']['0'-'9']+
 let letter = ['a'-'z' 'A'-'Z']
 let punctuation = ['.' ',' '!']
 let str = '"' (whitespace|letter|punctuation)* '"'
@@ -39,7 +43,13 @@ rule token =
     | "local"       { LOCAL }
     | "host"        { HOST }
     | "device"      { DEVICE }
+
+    (* data distribution keywords *)
     | "chunked"     { CHUNK }
+    | "strided"     { STRIDE }
+    | "custom"      { CUSTOM_DIST }
+
+    | "volatile"    { VOLATILE }
 
     | "config"      { CONFIG }
     | "group"       { GROUP }
@@ -52,13 +62,18 @@ rule token =
     | "y_max"       { Y_MAX }
 
     | "data"        { DATA }
-    | "const dim"   { DIM }
 
     | "code"        { CODE }
+    | "layout"      { LAYOUT }
 
     (* SPMD Keywords *)
+
+    (* iterators *)
     | "while"       { WHILE }
     | "for"         { FOR }
+    | "iterator"    { ITERATOR }
+    | "in"          { IN }
+
     | "if"          { IF }
     | "else"        { ELSE }
     | "int"         { INT }
@@ -106,6 +121,9 @@ rule token =
 
     (* Integers *)
     | number as number   { INT_LITERAL (int_of_string number) }
+
+    (* Float (matched by regex defined at the top) *)
+    | float_number as number   { FLOAT_LITERAL (float_of_string number) }
 
     (* String *)
     | str as str { STR (str) }

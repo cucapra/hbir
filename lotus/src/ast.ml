@@ -13,14 +13,6 @@ type generic_type =
     | IntTyp
     | FloatTyp
 
-type mem_type =
-    | Global
-    | Local
-
-type mem_location =
-    | Host
-    | Device
-
 type sgmt =
     | Target
     | Config
@@ -38,11 +30,13 @@ type expr =
     | Literal of literal
     | String of string
     | Int of int
+    | Float of float
     | X
     | Y
     | Bool of bool
     | Id of string
-    | Mem of string * expr
+    (* TODO: make this a expr option list and then map down as needed *)
+    | Mem of string * expr * expr option
     | Plus of expr * expr
     | Minus of expr * expr
     | Times of expr * expr
@@ -56,28 +50,47 @@ type expr =
     | And of expr * expr
     | Or of expr * expr
 
+(* inferred iterator from data section into the code section *)
+(* iterator name (i) ~ bounds ~ layout name ~ coord x ~ coord y *)
+type inferred_iterator = string * expr * string * expr * expr
+
 (* spmd *)
 type stmt =
     (*| Decl of *)
     | Decl of string * string
     | Assign of string * expr
-    | MemAssign of (string * expr) * expr
+    | MemAssign of (string * expr * expr option) * expr
     | DeclAssign of string * string * expr
     (*| If of expr * (stmt list) * (stmt option)  condition * if-block * else-block *)
     | If of if_block * (if_block list) * ((stmt list) option)
     | While of expr * (stmt list) (* condition * while-block *)
     | For of (stmt * expr * (string * expr)) * (stmt list)
+    | For_Infer of inferred_iterator * stmt list
     | Break of string
     | Print of string
     | BsgFinish
 
 and if_block = expr * (stmt list)
 
+(* fewer statements allowed in data section TODO merge with stmt using parent_stmt? *)
+type data_stmt =
+    (*| Decl of *)
+    | Assign of string * expr
+
+(* Helper functions *)
+let apply_to_option (b_option : 'b option) (default : 'a) (func : 'b -> 'a) : 'a =
+    match b_option with
+        | None -> default
+        | Some extracted_b -> func extracted_b
+
+
 (* hbir *)
 (* move to generic decl node *)
 type size_decl = string
 
 type width_decl = string
+
+(*type height_decl = string*)
 
 type mem_decl = string * expr * (size_decl * width_decl)
 
@@ -97,6 +110,36 @@ type group_decl =
 
 type code = tile * stmt list
 
+
+(************************************************************** 
+
+Data layout typedefs
+
+****************************************************************)
+
+type mem_type =
+    | Global
+    | Local
+
+type mem_location =
+    | Host
+    | Device
+
+(* data distribution policy *)
+type dist_policy = 
+    | Chunked
+    | Strided
+    (* if custom than allow code to be written there {} *)
+    | Custom
+
+(* memory layout that multiple data maps can share *)
+(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ 
+   [x] ~ [y] ~ *)
+(* layout name ~ physical storage (TODO: default to global no coords) ~ distribution ~ transfer type*)
+type data_layout = string * mem_type * dist_policy
+
+(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ type (int/float) ~ 
+   [x] ~ [y] ~ *)
 type data_map = mem_type * mem_location * string * generic_type * (expr * expr option) * (string * string option)
                 * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
 
@@ -109,10 +152,11 @@ type config_decl = group_decl list
 
 (* TODO: need to add mem list *)
 (* data sections *)
-type data_decl = expr * data_maps
+type data_decl = data_stmt list * data_maps * data_layout option
 
 type code_decl = ((stmt list) option) * code list
 
 (* program *)
 (* Consists of target, config, data, and code sections *)
 type program = target_decl * config_decl * data_decl * code_decl
+
