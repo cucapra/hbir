@@ -137,8 +137,6 @@ tileDecl:
         { (id, (X, Y)) }
     | CONFIG; DOT; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET
         { (id, (num1, num2))}
-    | CONFIG; DOT; id = ID; LEFT_BRACKET; X; RIGHT_BRACKET; LEFT_BRACKET; Y; RIGHT_BRACKET
-        { (id, (X, Y))}
 
 config:
     | CONFIG; LEFT_BRACE; gr = groupList; RIGHT_BRACE
