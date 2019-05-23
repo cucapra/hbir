@@ -1,4 +1,4 @@
-open Langstart
+open Lotuslib
 open Ast
 
 let program_file : string option ref = ref None

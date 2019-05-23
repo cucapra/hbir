@@ -4,4 +4,4 @@
 (ocamllex lexer)
 
 (library
-  (name langstart))
+  (name lotuslib))
