@@ -223,12 +223,6 @@ codeBlock:
     | t = tileDecl; LEFT_BRACE; s = stmtList; RIGHT_BRACE
         { (t, s)}
 
-exprList:
-    | e = expr
-        { e::[] }
-    | e1 = exprList; e2 = expr
-        { e1@(e2::[]) }
-
 stmtList:
     | s = stmt
         { s::[] }
