@@ -1,10 +1,11 @@
 opam-version: "2.0"
-name: "lang-start"
+name: "lotus"
 version: "0.0.1"
+synopsis: "A compiler for the HammerBlade IR"
 maintainer: "Adrian Sampson <asampson@cs.cornell.edu>"
 author: "Adrian Sampson <asampson@cs.cornell.edu>"
-homepage: "https://github.com/sampsyo/lang-start"
-bug-reports: "https://github.com/sampsyo/lang-start/issues"
+homepage: "https://github.com/cucapra/hbir"
+bug-reports: "https://github.com/cucapra/hbir/issues"
 build: [ "dune" "build" ]
 install: [ "dune" "install" ]
 remove: ["ocamlfind" "remove" "project"]
