@@ -113,6 +113,7 @@ rule token =
 
     | "."           { DOT }
     | ":"           { COLON }
+    | ","           { COMMA }
 
     (* Whitespace *)
     | whitespace+        { token lexbuf }

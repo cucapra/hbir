@@ -96,6 +96,7 @@ open Ast
 
 %token DOT
 %token COLON
+%token COMMA
 
 %left AND OR
 %left EQEQ NEQ LT LTE GT GTE
