@@ -67,16 +67,16 @@ and convert_inferred_iter (iter : inferred_iterator): string =
                 | Chunked -> (
                     let chunk_size_iter = "chunked_size_" ^ iterName in
                     let chunk_start_iter = "chunked_mem_start_" ^ iterName in
-                    "int " ^ chunk_size_iter ^ " = " ^ (convert_expr dim) ^ "/(__bsg_tiles_x * __bsg_tiles_y);\n" ^
+                    "int " ^ chunk_size_iter ^ " = " ^ (convert_expr dim) ^ "/(bsg_tiles_X * bsg_tiles_Y);\n" ^
                     
                     (* last one should do a lil' more *)
-                    "if ((" ^ (convert_expr x) ^ " + " ^ (convert_expr y) ^ " * __bsg_tiles_x) == num_tiles - 1) {\n" ^
+                    "if ((" ^ (convert_expr x) ^ " + " ^ (convert_expr y) ^ " * bsg_tiles_X) == num_tiles - 1) {\n" ^
                     chunk_size_iter ^ " += " ^ (convert_expr dim) ^ " % num_tiles;\n" ^
                     "}\n" ^
 
 
                     "int " ^ chunk_start_iter ^ " = (" ^ (convert_expr x) ^ " * " ^
-                    (convert_expr y) ^ " * " ^ "__bsg_tiles_x" ^ ") * " ^ chunk_size_iter ^ ";\n" ^
+                    (convert_expr y) ^ " * " ^ "bsg_tiles_X" ^ ") * " ^ chunk_size_iter ^ ";\n" ^
 
                     "for (int " ^ iterName ^ " = " ^ chunk_start_iter ^ "; " ^ iterName ^ 
                     " < " ^ chunk_start_iter ^ " + " ^ chunk_size_iter ^ "; " ^ iterName ^ "++) {\n" 
@@ -94,9 +94,9 @@ and convert_stmt (s : stmt) : string =
         symbol ^ "[" ^ (convert_expr dim_1) ^ "]" ^
         (apply_to_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
         ^ ("= ") ^ (convert_expr expr2) ^ ";"
-    | DeclAssign (str1, str2, expr) ->
-        if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
-        else str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
+    | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
+        (*if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
+        else str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"*)
     | If (i,il,s) -> (
         match s with
         | None -> ((convert_ib i) ^ (convert_iblist il))
@@ -146,8 +146,10 @@ and convert_target (prog : program) : string =
         (*TODO: Hard-code chunk size for now*)
         match t with
         | (_, (_, (_, _), _)) ->
-            "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" (*^
-            "volatile int csize = " ^ memsize ^ "/(bsg_tiles_X * bsg_tiles_Y);\n"*)
+            "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" ^
+            "int x = bsg_x;\n" ^
+            "int y = bsg_y;\n"
+            (*"volatile int csize = " ^ memsize ^ "/(bsg_tiles_X * bsg_tiles_Y);\n"*)
 
 and convert_data_stmt (s : data_stmt) : string =
     match s with

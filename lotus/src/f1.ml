@@ -262,7 +262,7 @@ let generate_f1_device (prog : program) : string =
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     convert_mem (prog) ^
     match prog with
-    | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^
+    | (_, _, _, c) -> "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^ (convert_target prog) ^
         match c with
         | (None, cl) -> (convert_codelist cl) ^ "\n}"
         | (Some sl, cl) ->
