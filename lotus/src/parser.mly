@@ -16,7 +16,6 @@ open Ast
 %token HOST
 %token DEVICE
 %token CHUNK
-%token VOLATILE
 
 %token CONFIG
 %token GROUP
@@ -39,12 +38,9 @@ open Ast
 %token IF
 %token FOR
 %token ELSE
-%token RETURN
 %token INT
 %token BOOL
 %token FLOAT
-%token USE
-%token LENGTH
 %token TRUE
 %token FALSE
 %token PRINTF
@@ -67,7 +63,6 @@ open Ast
 %token MINUS
 %token TIMES
 %token DIV
-%token MOD
 
 %token EQ
 %token LT
@@ -76,17 +71,12 @@ open Ast
 %token GT
 %token EQEQ
 %token NEQ
-%token AMP
-%token BAR
-%token BANG
 %token AND
 %token OR
 
 %token SEMICOLON
 
 %token DOT
-%token UNDERSCORE
-%token COMMA
 %token COLON
 
 %left AND OR

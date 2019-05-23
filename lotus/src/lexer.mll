@@ -40,7 +40,6 @@ rule token =
     | "host"        { HOST }
     | "device"      { DEVICE }
     | "chunked"     { CHUNK }
-    | "volatile"    { VOLATILE }
 
     | "config"      { CONFIG }
     | "group"       { GROUP }
@@ -62,12 +61,9 @@ rule token =
     | "for"         { FOR }
     | "if"          { IF }
     | "else"        { ELSE }
-    | "return"      { RETURN }
     | "int"         { INT }
     | "bool"        { BOOL }
     | "float"       { FLOAT }
-    | "use"         { USE }
-    | "length"      { LENGTH }
     | "true"        { TRUE }
     | "false"       { FALSE }
     (* TODO: Maybe implement this in a different way in the future (ie: don't handle this on the lexer/parser level) *)
@@ -87,7 +83,6 @@ rule token =
     | "-"           { MINUS }
     | "*"           { TIMES }
     | "/"           { DIV }
-    | "%"           { MOD }
 
     | "="           { EQ }
     | "<"           { LT }
@@ -96,17 +91,12 @@ rule token =
     | ">"           { GT }
     | "=="          { EQEQ }
     | "!="          { NEQ }
-    | "&"           { AMP }
-    | "|"           { BAR }
-    | "!"           { BANG }
     | "&&"          { AND }
     | "||"          { OR }
 
     | ";"           { SEMICOLON }
 
     | "."           { DOT }
-    | "_"           { UNDERSCORE }
-    | ","           { COMMA }
     | ":"           { COLON }
 
     (* Whitespace *)
