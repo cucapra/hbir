@@ -26,9 +26,6 @@ open Ast
 (* memory layout tokens *)
 %token CHUNK
 %token STRIDE
-%token CUSTOM_DIST
-
-%token VOLATILE
 
 %token CONFIG
 %token GROUP
@@ -217,7 +214,7 @@ dataMap:
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num2 = expr; RIGHT_BRACKET;
                LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
        {mt, ml, id, t, (num1, None), (id1, None), (num2, None), (s1, Some s2, None), id2}
-    
+
     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
                BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
                LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
@@ -230,7 +227,7 @@ dataMap:
        {mt, ml, id, t, (num1, Some num2), (id1, Some id2), (num3, Some num4), (s1, Some s3, Some s2), id3}
 
 
-    (* 2d handler 
+    (* 2d handler
         Syntax <type>[<x>][<y>] = block[<targ>][<targ>]
             <targ>
             <global/local>
@@ -238,8 +235,8 @@ dataMap:
             <host/device>
     *)
 
-    | id = ID; COLON; t = typ; 
-                    LEFT_BRACKET; dim_x = expr; RIGHT_BRACKET; 
+    | id = ID; COLON; t = typ;
+                    LEFT_BRACKET; dim_x = expr; RIGHT_BRACKET;
                     LEFT_BRACKET; dim_y = expr; RIGHT_BRACKET;
                     EQ;
                 BLOCK; LEFT_BRACKET; seg_x = sgmts; DOT; id_x = ID; DOT; num1 = expr; RIGHT_BRACKET;
@@ -326,8 +323,8 @@ stmt:
     | id = ID; LEFT_BRACKET; e1 = expr; RIGHT_BRACKET; EQ; e2 = expr; SEMICOLON
         { MemAssign ((id, e1, None), e2) }
     (* 2D access *)
-    | id = ID; LEFT_BRACKET; dim_1 = expr; RIGHT_BRACKET; 
-               LEFT_BRACKET; dim_2 = expr; RIGHT_BRACKET; 
+    | id = ID; LEFT_BRACKET; dim_1 = expr; RIGHT_BRACKET;
+               LEFT_BRACKET; dim_2 = expr; RIGHT_BRACKET;
         EQ; e2 = expr; SEMICOLON
         { MemAssign ((id, dim_1, Some dim_2), e2) }
 
@@ -346,8 +343,8 @@ stmt:
     | id = ID; LEFT_BRACKET; e1 = expr; RIGHT_BRACKET; PLUS; EQ; e2 = expr; SEMICOLON
         { MemAssign ((id, e1, None), Plus (Mem(id, e1, None), e2)) }
     (* 2D access *)
-    | id = ID; LEFT_BRACKET; dim_1 = expr; RIGHT_BRACKET; 
-               LEFT_BRACKET; dim_2 = expr; RIGHT_BRACKET;  
+    | id = ID; LEFT_BRACKET; dim_1 = expr; RIGHT_BRACKET;
+               LEFT_BRACKET; dim_2 = expr; RIGHT_BRACKET;
                PLUS; EQ; e2 = expr; SEMICOLON
         { MemAssign ((id, dim_1, Some dim_2), Plus (Mem(id, dim_1, Some dim_2), e2)) }
 
