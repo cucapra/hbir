@@ -33,3 +33,5 @@ To install it, we use [Flit][]:
 Here's a quick way to install the tool with a symlink:
 
     $ flit install --symlink --user
+
+[flit]: https://flit.readthedocs.io/en/latest/
