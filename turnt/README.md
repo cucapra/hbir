@@ -20,3 +20,16 @@ To use it:
 
 [cram]: https://bitheap.org/cram/
 [lit]: https://llvm.org/docs/CommandGuide/lit.html
+
+
+Install
+-------
+
+This is a Python 3 tool.
+To install it, we use [Flit][]:
+
+    $ pip install --user flit
+
+Here's a quick way to install the tool with a symlink:
+
+    $ flit install --symlink --user
