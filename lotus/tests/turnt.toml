@@ -1,0 +1,1 @@
+command = "dune exec lotus -- -bsg {filename}"
