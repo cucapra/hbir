@@ -1,8 +1,13 @@
+"""File Input Checker (fic) is a simple expect-style testing tool for
+command-line programs.
+"""
 import click
 import tomlkit
 import os
 import shlex
 import subprocess
+
+__version__ = '0.0.1'
 
 CONFIG_FILENAME = 'fic.toml'
 
