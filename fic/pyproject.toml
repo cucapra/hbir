@@ -1,0 +1,15 @@
+[build-system]
+requires = ["flit"]
+build-backend = "flit.buildapi"
+
+[tool.flit.metadata]
+module = "fic"
+author = "Adrian Sampson"
+author-email = "asampson@cs.cornell.edu"
+requires = [
+    "click",
+    "tomlkit",
+]
+
+[tool.flit.scripts]
+fic = "fic:fic"
