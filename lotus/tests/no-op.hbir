@@ -2,12 +2,6 @@
 //   given the current parser + compiler combo.
 // Currently, the parser requires too much info
 target{
-    memory g[0]{
-        size 8G;
-        width 8B;
-    };
-
-    tile t[0][0];
 }
 
 config{

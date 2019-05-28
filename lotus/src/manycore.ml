@@ -145,7 +145,8 @@ and convert_target (prog : program) : string =
                       | (e, _) -> (convert_expr e) in*)
         (*TODO: Hard-code chunk size for now*)
         match t with
-        | (_, (_, (_, _), _)) ->
+        | [] -> ""
+        | _ :: _ ->
             "int num_tiles = bsg_tiles_X * bsg_tiles_Y;\n" ^
             "int x = bsg_x;\n" ^
             "int y = bsg_y;\n"
@@ -200,13 +201,9 @@ let convert_ast (prog : program) : string =
 
 let generate_makefile (prog : program) : string =
     match prog with
-    | (target, _, _, _) ->
-        match target with
-                | (m1, t) -> match m1 with (_, _, (_, _)) -> "" ^
-                    match t with (_, (e2, e3), m2) -> "bsg_tiles_X = " ^ (convert_expr e2) ^
-                                                       "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
-                                                       makefile ^
-                        match m2 with
-                            | None -> ""
-                            | Some mem -> match mem with (_, _, (_, _)) -> ""
-
+    | ([], _, _, _) -> ""
+    | (GlobalMemDecl _ :: _, _, _, _) -> ""
+    | (TileMemDecl (_, (e2, e3), _) :: _, _, _, _) ->
+        "bsg_tiles_X = " ^ (convert_expr e2) ^
+        "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
+        makefile

@@ -80,16 +80,15 @@ let rec pretty_codelist (cl : code list) : string =
 
 let pretty_program (p : program) : string =
     match p with
-    | (target, config, data, code) ->
-        (match target with
-        | (m1, t) -> (match m1 with (s1, e1, (size1, width1)) -> "target mem " ^ s1 ^ " with dim " ^ (pretty e1)
-        ^ " with size " ^ size1 ^ " and width " ^ width1) ^ " " ^
-                    (match t with (s2, (e2, e3), m2) -> "target tile " ^ s2 ^ " with dim " ^ (pretty e2) ^ ", " ^ (pretty e3)
-                    ^ " and with memory " ^ (match m2 with
-                                                | None -> "empty memory"
-                                                | Some mem -> match mem with (s3, e4, (size2, width2)) ->
-                                                    s3 ^ " with mem dim " ^ (pretty e4) ^ " with size " ^ size2 ^ " and width " ^ width2))
-        ) ^ "\n" ^
+    | ([], _, _, _) -> "No target specified"
+    | (GlobalMemDecl m1 :: _, _, _, _) ->
+        (match m1 with (s1, e1, (size1, width1)) -> "target mem " ^ s1 ^ " with dim " ^ (pretty e1)
+        ^ " with size " ^ size1 ^ " and width " ^ width1) ^ " "
+    | (TileMemDecl t :: _, config, data, code) ->
+        (match t with (s2, (e2, e3), m2) -> "target tile " ^ s2 ^ " with dim " ^ (pretty e2) ^ ", " ^ (pretty e3) ^ " and with memory " ^ (match m2 with
+            | None -> "empty memory"
+            | Some mem -> match mem with (s3, e4, (size2, width2)) ->
+                s3 ^ " with mem dim " ^ (pretty e4) ^ " with size " ^ size2 ^ " and width " ^ width2)) ^ "\n" ^
         (match config with
         | [] -> ""
         | g::_ -> (match g with
