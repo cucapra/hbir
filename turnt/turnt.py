@@ -1,5 +1,5 @@
-"""File Input Checker (fic) is a simple expect-style testing tool for
-command-line programs.
+"""Turnt is a simple expect-style testing tool for command-line
+programs.
 """
 import click
 import tomlkit
@@ -12,7 +12,7 @@ import sys
 
 __version__ = '0.0.1'
 
-CONFIG_FILENAME = 'fic.toml'
+CONFIG_FILENAME = 'turnt.toml'
 
 
 def load_config(path):
@@ -94,7 +94,7 @@ def run_test(path, idx, save, diff, tap):
 @click.option('--tap/--no-tap', default=True,
               help='Summarize test success in TAP format.')
 @click.argument('file', nargs=-1, type=click.Path(exists=True))
-def fic(file, save, diff, tap):
+def turnt(file, save, diff, tap):
     if tap:
         print('1..{}'.format(len(file)))
 
@@ -106,4 +106,4 @@ def fic(file, save, diff, tap):
 
 
 if __name__ == '__main__':
-    fic()
+    turnt()
