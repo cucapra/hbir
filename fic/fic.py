@@ -6,6 +6,9 @@ import tomlkit
 import os
 import shlex
 import subprocess
+import tempfile
+import shutil
+import sys
 
 __version__ = '0.0.1'
 
@@ -34,19 +37,72 @@ def get_command(config, path):
     ]
 
 
-def run_test(path):
+def get_out_file(config, path):
+    """Get the filename containing the expected output for a test.
+    """
+    base, _ = os.path.splitext(path)
+    return '{}.out'.format(base)
+
+
+def run_test(path, idx, save, diff, tap):
     config = load_config(path)
     cmd = get_command(config, path)
+    out_path = get_out_file(config, path)
 
-    print(cmd)
-    subprocess.call(cmd)
+    # Run the command.
+    cwd = os.path.abspath(os.path.dirname(path))
+    with tempfile.NamedTemporaryFile(delete=False) as temp:
+        subprocess.call(cmd, stdout=temp, cwd=cwd)
+
+    try:
+        # Diff the actual & expected output.
+        if diff:
+            subprocess.call(['diff', '--new-file', out_path, temp.name])
+
+        # Save the new output, if requested.
+        if save:
+            shutil.copy(temp.name, out_path)
+
+        # Check whether output matches & summarize.
+        with open(temp.name) as f:
+            actual = f.read()
+        if os.path.isfile(out_path):
+            with open(out_path) as f:
+                expected = f.read()
+        else:
+            expected = None
+        success = actual == expected
+
+        if tap:
+            print('{} {} - {}'.format(
+                'ok' if success else 'not ok',
+                idx,
+                path,
+            ))
+
+    finally:
+        os.unlink(temp.name)
+
+    return success
 
 
 @click.command()
+@click.option('--save', is_flag=True, default=False,
+              help='Save new outputs (overwriting old).')
+@click.option('--diff', is_flag=True, default=False,
+              help='Show a diff between the actual and expected output.')
+@click.option('--tap/--no-tap', default=True,
+              help='Summarize test success in TAP format.')
 @click.argument('file', nargs=-1, type=click.Path(exists=True))
-def fic(file):
-    for path in file:
-        run_test(path)
+def fic(file, save, diff, tap):
+    if tap:
+        print('1..{}'.format(len(file)))
+
+    success = True
+    for idx, path in enumerate(file):
+        success &= run_test(path, idx + 1, save, diff, tap)
+
+    sys.exit(0 if success else 1)
 
 
 if __name__ == '__main__':
