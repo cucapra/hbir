@@ -146,7 +146,7 @@ type data_map = mem_type * mem_location * string * generic_type * (expr * expr o
 type data_maps = data_map list
 
 (* segments *)
-type target_decl = mem_decl * tile_decl
+type target_decl = GlobalMemDecl of mem_decl | TileMemDecl of tile_decl
 
 type config_decl = group_decl list
 
@@ -158,5 +158,5 @@ type code_decl = ((stmt list) option) * code list
 
 (* program *)
 (* Consists of target, config, data, and code sections *)
-type program = target_decl * config_decl * data_decl * code_decl
+type program = target_decl list * config_decl * data_decl * code_decl
 

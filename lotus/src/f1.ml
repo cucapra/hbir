@@ -190,58 +190,58 @@ let f1_split_dmaps (dmaps : data_map list) =
         split ( dmaps, [], [] )
 
 (* figure out how many tiles should be allocated for a particular kernel *)
-let f1_get_num_tiles ( c : config_decl ) : bounds =
-        match c with
-        | (g) ->
-                let rec traverse_configs (( groups : group_decl list ), ( bnds : bounds list )) =
-                        match groups with
-                        | [] -> bnds
-                        | b::bt ->
-                                match b with 
-                                (* TODO recursion into the group, not supported for now *)
-                                | NestedGroup (_, (_ , _) , _) -> bnds
-                                (* extract dimension of the group *)
-                                | GroupStmt (_, (w , h) , _) ->
-                                        (* add configs to the list *)
-                                        let new_bounds = (Int 0, Int 1, w, Plus(h, Int 1)) in
-                                        let new_blist = new_bounds::bnds in
-                                        (* TODO recursion for next config in the list *)
-                                        traverse_configs(bt, new_blist)
-                (* get the dimensions as a string for now *)
-                in
-                let bnds = traverse_configs(g, []) in
-                (* TODO just return the first one *)
-                match bnds with
-                | [] -> (Int 0, Int 0, Int 0, Int 0)
-                | b::_ ->
-                      b  
+let f1_get_num_tiles ( config : config_decl ) : bounds =
+  match config with
+  | [] -> (Int 0, Int 0, Int 0, Int 0)
+  | (g) ->
+    let rec traverse_configs (( groups : group_decl list ), ( bnds : bounds list )) =
+      match groups with
+      | [] -> bnds
+      | b::bt ->
+              match b with 
+              (* TODO recursion into the group, not supported for now *)
+              | NestedGroup (_, (_ , _) , _) -> bnds
+              (* extract dimension of the group *)
+              | GroupStmt (_, (w , h) , _) ->
+                      (* add configs to the list *)
+                      let new_bounds = (Int 0, Int 1, w, Plus(h, Int 1)) in
+                      let new_blist = new_bounds::bnds in
+                      (* TODO recursion for next config in the list *)
+                      traverse_configs(bt, new_blist)
+    (* get the dimensions as a string for now *)
+    in
+    let bnds = traverse_configs(g, []) in
+    (* TODO just return the first one *)
+    match bnds with
+    | [] -> (Int 0, Int 0, Int 0, Int 0)
+    | b::_ -> b  
 
 (* emits the host code *)
 let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
-    (f1_includes gen_wrapper) ^ 
-    match prog with
-    | (_, c, d, _) -> (
-        let tile_bounds = f1_get_num_tiles(c) in
-        match d with
-        | (sl, dmaps, _) ->
-                (f1_main gen_wrapper dmaps) ^   
-                (* get dmaps intended to be send in different directions *)
-                let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
-                (convert_data_stmtlist sl) ^
-                (*"\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^*)
-                (f1_convert_dmaps memcpy_to_dmaps (f1_host_data_gen gen_wrapper)) ^
-                f1_load_kernel(tile_bounds) ^ 
-                (* for each data field should create a memcpy cmd*)
+  (f1_includes gen_wrapper) ^
+  match prog with
+  | (_, config, data, _) -> (
+    let tile_bounds = f1_get_num_tiles(config) in
+    match data with
+    | (stmtList, dmaps, _) ->
+      (f1_main gen_wrapper dmaps) ^   
 
-                let memcpy_to = (f1_memcpy "hostToDevice" tile_bounds) in
-                (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
-                f1_run_and_wait(tile_bounds) ^
+      (* get dmaps intended to be send in different directions *)
+      let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
+      let memcpy_to = (f1_memcpy "hostToDevice" tile_bounds) in
+      let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
+        (convert_data_stmtlist stmtList) ^
+        (*"\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^*)
+        (f1_convert_dmaps memcpy_to_dmaps (f1_host_data_gen gen_wrapper)) ^
+        f1_load_kernel(tile_bounds) ^ 
 
-                (f1_convert_dmaps memcpy_from_dmaps (f1_result_buffers gen_wrapper)) ^ 
-                let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
-                (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
-                f1_cleanup_host
-    )
+        (* for each data field should create a memcpy cmd*)
+        (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
+        f1_run_and_wait(tile_bounds) ^
+        (f1_convert_dmaps memcpy_from_dmaps (f1_result_buffers gen_wrapper)) ^ 
+        (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
+        f1_cleanup_host
+  )
 
 (* generates header file to include in your program to run the hbir kernel *)
 let generate_f1_wrapper_header (prog : program) : string =
@@ -270,16 +270,12 @@ let generate_f1_device (prog : program) : string =
 
 let generate_f1_makefile (prog : program) : string =
     match prog with
-    | (target, _, _, _) ->
-        match target with
-                | (m1, t) -> match m1 with (_, _, (_, _)) -> "" ^
-                    match t with (_, (e2, e3), m2) -> "bsg_tiles_X = " ^ (convert_expr e2) ^
-                                                       "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
-                                                       makefile ^
-                        match m2 with
-                            | None -> ""
-                            | Some mem -> match mem with (_, _, (_, _)) -> ""
-
+    | ([], _, _, _) -> ""
+    | (GlobalMemDecl _ :: _, _, _, _) -> ""
+    | (TileMemDecl (_, (e2, e3), _) :: _, _, _, _) ->
+        "bsg_tiles_X = " ^ (convert_expr e2) ^
+        "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
+        makefile
 
 (* any preprocessing before actually doing the compilation, like constructing the symbol table or static analysis? *)
 let preprocessing_phase (prog : program) =
