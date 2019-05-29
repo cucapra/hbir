@@ -163,8 +163,14 @@ tileDecl:
         { (id, (num1, num2))}
 
 config:
-    | CONFIG; LEFT_BRACE; gr = groupList; RIGHT_BRACE
+    | CONFIG; LEFT_BRACE; gr = group*; RIGHT_BRACE
         { (gr) }
+
+group:
+    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g1 = groupBlk; RIGHT_BRACE; SEMICOLON
+        { GroupStmt (id, (num1, num2), g1)}
+    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g2 = group; RIGHT_BRACE; SEMICOLON
+        { NestedGroup (id, (num1, num2), g2)}
 
 groupBlk:
     | t = tileDecl
@@ -173,27 +179,13 @@ groupBlk:
       TEMPORAL; GROUP; BLOCK; LEFT_BRACKET; num3 = INT_LITERAL; RIGHT_BRACKET; SEMICOLON
         { TileWithTemporal (t, num3) }
 
-groupList:
-    | g = group
-        { g::[] }
-    | g1 = groupList; g2 = group
-        { g1@(g2::[]) }
-
-group:
-    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g1 = groupBlk; RIGHT_BRACE; SEMICOLON
-        { GroupStmt (id, (num1, num2), g1)}
-    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g2 = group; RIGHT_BRACE; SEMICOLON
-        { NestedGroup (id, (num1, num2), g2)}
-
 (* code in the data section -> parse a mix of dimension decl and data map decls *)
 (* prob only want to allow subset of the language! *)
 data:
     (* TODO: Allow in any order, need to make into list parse where list can contain
     any of the fields below!  *)
-    | DATA; LEFT_BRACE; sl = dataStmtList; dl = dataMaps; RIGHT_BRACE
-        { (sl, dl, None) }
-    | DATA; LEFT_BRACE; sl = dataStmtList; ly = layoutStmt; dl = dataMaps; RIGHT_BRACE
-        { (sl, dl, Some ly) }
+    | DATA; LEFT_BRACE; sl = dataStmt*; ly = layoutStmt?; dl = dataMap*; RIGHT_BRACE
+        { (sl, dl, ly) }
 
 memType:
     | GLOBAL; SEMICOLON
@@ -252,12 +244,6 @@ dataMap:
                LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON
        {mt, ml, id, t, (dim_x, Some dim_y), (id_x, Some id_y), (num1, Some num2), (seg_x, Some seg_y, Some), id2}
 
-dataMaps:
-    | d = dataMap
-        { d::[] }
-    | d1 = dataMaps; d2 = dataMap
-        { d1@(d2::[]) }
-
 (* TODO: Once you enter code section, the parser should enter a state of just checking for SPMD (think in how yacc worked in Java) *)
 code:
     | CODE; LEFT_BRACE; RIGHT_BRACE
@@ -281,12 +267,6 @@ stmtList:
     | s = stmt
         { s::[] }
     | s1 = stmtList; s2 = stmt
-        {s1@(s2::[]) }
-
-dataStmtList:
-    | s = dataStmt
-        { s::[] }
-    | s1 = dataStmtList; s2 = dataStmt
         {s1@(s2::[]) }
 
 (* define how one would parse a layout stmt *)

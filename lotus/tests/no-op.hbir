@@ -1,25 +1,10 @@
-// This is the closest to "no-op" possible,
-//   given the current parser + compiler combo.
-// Currently, the parser requires too much info
 target{
 }
 
 config{
-    group tg[0][0] {
-        tile target.t[x][y];
-    };
 }
 
 data{
-    t = 0;
-
-    A: int[dim] = block[target.g.x_max] {
-        target.g[x];
-        global;
-        chunked;
-        host;
-    };
-
 }
 
 code{
