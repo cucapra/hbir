@@ -152,7 +152,11 @@ type config_decl = group_decl list
 
 (* TODO: need to add mem list *)
 (* data sections *)
-type data_decl = data_stmt list * data_maps * data_layout option
+type data_decl = {
+  constant_decls : data_stmt list;
+  layout : data_layout option;
+  inouts : data_maps
+}
 
 type code_decl = ((stmt list) option) * code list
 

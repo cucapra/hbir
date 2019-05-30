@@ -60,7 +60,7 @@ let rec convert_iblist (il : if_block list) : string =
 and convert_inferred_iter (iter : inferred_iterator): string =
     match iter with
     | (iterName, dim, layoutName, x, y) -> (
-        let dlyt : data_layout = (find_data_layout_by_symbol layoutName) in
+        let dlyt : data_layout = find_data_layout_by_symbol layoutName in
         match dlyt with
             | (_, _, dist_policy) ->
                 match dist_policy with
@@ -166,8 +166,7 @@ and convert_data_stmtlist (sl : data_stmt list) =
 and convert_mem (prog : program) : string =
     match prog with
     | (_, _, d, _) ->
-        match d with
-        | (sl, dmaps, _) -> (convert_data_stmtlist sl) ^ "\n" ^ (convert_dmaps dmaps)
+        (convert_data_stmtlist d.constant_decls) ^ "\n" ^ (convert_dmaps d.inouts)
 
 and convert_codelist (cl : code list) : string =
     match cl with

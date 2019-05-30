@@ -222,15 +222,13 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
   match prog with
   | (_, config, data, _) -> (
     let tile_bounds = f1_get_num_tiles(config) in
-    match data with
-    | (stmtList, dmaps, _) ->
-      (f1_main gen_wrapper dmaps) ^   
+      (f1_main gen_wrapper data.inouts) ^   
 
       (* get dmaps intended to be send in different directions *)
-      let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(dmaps) in
+      let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(data.inouts) in
       let memcpy_to = (f1_memcpy "hostToDevice" tile_bounds) in
       let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
-        (convert_data_stmtlist stmtList) ^
+        (convert_data_stmtlist data.constant_decls) ^
         (*"\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^*)
         (f1_convert_dmaps memcpy_to_dmaps (f1_host_data_gen gen_wrapper)) ^
         f1_load_kernel(tile_bounds) ^ 
@@ -247,14 +245,12 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
 let generate_f1_wrapper_header (prog : program) : string =
     match prog with
     | (_, _, d, _) -> 
-        match d with 
-        | (_, dmaps, _) ->
-                let kernel_name = "hbir_kernel" in
-                let unique_def_name = "___" ^ kernel_name ^ "___" in
-                "#ifndef " ^ unique_def_name ^ "\n" ^
-                "#define " ^ unique_def_name ^ "\n" ^
-                (f1_create_kernel_header kernel_name dmaps) ^ ";\n" ^
-                "#endif\n"
+      let kernel_name = "hbir_kernel" in
+      let unique_def_name = "___" ^ kernel_name ^ "___" in
+      "#ifndef " ^ unique_def_name ^ "\n" ^
+      "#define " ^ unique_def_name ^ "\n" ^
+      (f1_create_kernel_header kernel_name d.inouts) ^ ";\n" ^
+      "#endif\n"
 
 
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)

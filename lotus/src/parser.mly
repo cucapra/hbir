@@ -183,7 +183,7 @@ let data :=
     (* TODO: Allow in any order, need to make into list parse where list can contain
     any of the fields below!  *)
     | DATA; LEFT_BRACE; sl = dataStmt*; ly = layoutStmt?; dl = dataMap*; RIGHT_BRACE;
-        { (sl, dl, ly) }
+    { {constant_decls = sl; layout = ly; inouts = dl} }
 
 let memType :=
     | GLOBAL; SEMICOLON;

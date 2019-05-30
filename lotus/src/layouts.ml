@@ -41,7 +41,4 @@ let find_data_layout_by_symbol (search_name : string) : data_layout =
 
 (* generate the symbol table before compilation (merging of the sections) begins *)
 let generate_layout_symbol_table (data : data_decl) =
-  match data with
-  | (_, _, lyt) -> (
-    (apply_to_option lyt () (fun (d : data_layout) -> (append_data_layout d)))
-  )
+    apply_to_option data.layout () (fun (d : data_layout) -> (append_data_layout d))

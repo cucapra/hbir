@@ -84,7 +84,7 @@ let pretty_program (p : program) : string =
     | (GlobalMemDecl m1 :: _, _, _, _) ->
         (match m1 with (s1, e1, (size1, width1)) -> "target mem " ^ s1 ^ " with dim " ^ (pretty e1)
         ^ " with size " ^ size1 ^ " and width " ^ width1) ^ " "
-    | (TileMemDecl t :: _, config, data, code) ->
+    | (TileMemDecl t :: _, config, _, code) ->
         (match t with (s2, (e2, e3), m2) -> "target tile " ^ s2 ^ " with dim " ^ (pretty e2) ^ ", " ^ (pretty e3) ^ " and with memory " ^ (match m2 with
             | None -> "empty memory"
             | Some mem -> match mem with (s3, e4, (size2, width2)) ->
@@ -96,9 +96,8 @@ let pretty_program (p : program) : string =
                     | GroupStmt gs -> match gs with (s1, (e1, e2), _) ->
                       "config group " ^ s1 ^ " with dim " ^ (pretty e1) ^ ", " ^ (pretty e2))
         ) ^ "\n" ^
-        (match data with
-        | (_, _, _) -> "data with dim " (*^ (pretty d)*)
-        ) ^ "\n" ^
+        ("data with dim " (*^ (pretty d)*)) 
+          ^ "\n" ^
         (match code with
         | (_, codeList) -> "code with " ^ (pretty_codelist codeList)
         )
