@@ -35,3 +35,16 @@ Here's a quick way to install the tool with a symlink:
     $ flit install --symlink --user
 
 [flit]: https://flit.readthedocs.io/en/latest/
+
+
+TAP
+---
+
+Turnt outputs [TAP][] results by default.
+To make the output more pleasant to read, you can pipe it into a tool like [tap-difflet][]:
+
+    $ npm install -g tap-difflet
+    $ turnt *.t | tap-difflet
+
+[tap]: http://testanything.org
+[tap-difflet]: https://github.com/namuol/tap-difflet
