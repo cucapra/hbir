@@ -1,0 +1,22 @@
+target{
+}
+
+config{
+}
+
+data{
+  dim = 1;
+  
+  in A : int[3][3] {
+    location : config.t,
+    layout : block
+  } 
+
+  out B : int[3][3] {
+    location : config.t,
+    layout : block
+  }
+}
+
+code{
+}

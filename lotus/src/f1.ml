@@ -107,38 +107,37 @@ let f1_memcpy (dir : string) (b : bounds) (args : memcpy) : string =
 
 
 (* foreach dmap entry, do the provided function *)
-let rec f1_convert_dmaps (dmaps : data_map list) (func : memcpy -> string) : string =
+let rec f1_convert_dmaps (dmaps : data_decl list) (func : memcpy -> string) : string =
     match dmaps with
     | [] -> ""
     | d::dt -> (
-        (* for the head, get the name (i) type (t) and xDim (dim_x) and yDim option (d_y) *)
-        match d with
-        | (_, _, i, _, (dim_x, d_y), (_, _), (_,_), (_,_,_), _) ->
-                let dim : expr = match d_y with
-                        | None -> dim_x
-                        | Some dim_y -> Times (dim_x,dim_y)
-                in
-                let single_memcpy = i, convert_expr dim in
-                func(single_memcpy) ^
-                (* recursively call the function on the next element to process the whole array *)
-                (f1_convert_dmaps dt func))
+      (* for the head, get the name (i) type (t) and xDim (dim_x) and yDim option (d_y) *)
+      let dim : expr = match (d.data_dims) with
+              | [dim_x] -> dim_x
+              | [dim_x; dim_y] -> Times (dim_x,dim_y)
+              | _ -> failwith "only 1 or 2 dimensional data supported."
+      in
+      let single_memcpy = d.data_name, convert_expr dim in
+      func(single_memcpy) ^
+      (* recursively call the function on the next element to process the whole array *)
+      (f1_convert_dmaps dt func))
 
 
 (* create the whole signature (all arguments) for hbir kernel *)
-let f1_create_full_signature (dmaps: data_map list) : string =
+let f1_create_full_signature (dmaps: data_decl list) : string =
         let sig_trail : string = f1_convert_dmaps dmaps f1_kernel_signature in
         (* remove trailing ', ' *)
         let strLen = String.length sig_trail in
         let signature = String.sub sig_trail 0 (strLen - 2) in
         signature
 
-let f1_create_kernel_header (kernel_name : string) (dmaps : data_map list) : string =
+let f1_create_kernel_header (kernel_name : string) (dmaps : data_decl list) : string =
         let signature = (f1_create_full_signature dmaps) in
         "int " ^ kernel_name ^ "(" ^ signature ^ ")"
 
 (* develop header for the host program, if standalone, then main, otherwise give wrapper func name *)
 (*TODO need to intepret data map for mem args. also need to give a name! *)
-let f1_main (gen_wrapper : bool) (dmaps : data_map list) : string = 
+let f1_main (gen_wrapper : bool) (dmaps : data_decl list) : string = 
         let kernel_name = "hbir_kernel" in
         let binary_name = "main.riscv" in
         
@@ -172,19 +171,17 @@ let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
 
 (* https://stackoverflow.com/questions/26484498/ocaml-splitting-list-into-two-separate-greater-or-lesser-than-given-number *)
 (* split data entry list into two lists, one's that need host to device memcpy and others device to host  *)
-let f1_split_dmaps (dmaps : data_map list) =
-        let rec split((dmaps : data_map list), (dmaps_to : data_map list), (dmaps_from : data_map list)) =
+let f1_split_dmaps (dmaps : data_decl list) =
+        let rec split((dmaps : data_decl list), (dmaps_to : data_decl list), (dmaps_from : data_decl list)) =
                 match dmaps with
                 (* when your initial list is empty, you have to return the accumulators *)
                 | [] -> (dmaps_to, dmaps_from)
                 | d::dt ->
                         (* break open dmap to get the mem send direction *)
-                        match d with
-                        | (_, dir, _, _, (_, _), (_, _), (_,_), (_,_,_), _) -> 
-                                (* append dmap entry to either memcpy_to or memcpy_from dmaps *)
-                                match dir with
-                                | Host -> split ( dt, d::dmaps_to, dmaps_from ) 
-                                | Device -> split( dt, dmaps_to, d::dmaps_from )
+                        (* append dmap entry to either memcpy_to or memcpy_from dmaps *)
+                        match d.data_dir with
+                        | In -> split ( dt, d::dmaps_to, dmaps_from ) 
+                        | Out -> split( dt, dmaps_to, d::dmaps_from )
         in 
         (* start recursion *)
         split ( dmaps, [], [] )
@@ -222,10 +219,10 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
   match prog with
   | (_, config, data, _) -> (
     let tile_bounds = f1_get_num_tiles(config) in
-      (f1_main gen_wrapper data.inouts) ^   
+      (f1_main gen_wrapper data.data_decls) ^   
 
       (* get dmaps intended to be send in different directions *)
-      let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(data.inouts) in
+      let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(data.data_decls) in
       let memcpy_to = (f1_memcpy "hostToDevice" tile_bounds) in
       let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
         (convert_data_stmtlist data.constant_decls) ^
@@ -249,7 +246,7 @@ let generate_f1_wrapper_header (prog : program) : string =
       let unique_def_name = "___" ^ kernel_name ^ "___" in
       "#ifndef " ^ unique_def_name ^ "\n" ^
       "#define " ^ unique_def_name ^ "\n" ^
-      (f1_create_kernel_header kernel_name d.inouts) ^ ";\n" ^
+      (f1_create_kernel_header kernel_name d.data_decls) ^ ";\n" ^
       "#endif\n"
 
 
@@ -277,4 +274,4 @@ let generate_f1_makefile (prog : program) : string =
 let preprocessing_phase (prog : program) =
     match prog with
     | (_, _, d, _) -> 
-        (generate_layout_symbol_table d)
+        (generate_layout_symbol_table (List.nth d.data_decls 0))

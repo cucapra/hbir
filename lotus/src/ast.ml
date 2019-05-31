@@ -125,42 +125,49 @@ type mem_location =
     | Host
     | Device
 
-(* data distribution policy *)
-type dist_policy = 
+(* CODE ABOVE BEING GRADUALLY RESTRUCTURED BELOW,
+ * when finished, all code will be 'BELOW' *)
+
+(* program *)
+type program = target_decl list * config_decl * data_section * code_decl
+
+(* target section *)
+and target_decl = 
+  GlobalMemDecl of mem_decl | 
+  TileMemDecl of tile_decl
+
+(* config section *)
+and config_decl = group_decl list
+
+(* data section *)
+and data_section = {
+  constant_decls : data_stmt list;
+  data_decls : data_decl list
+}
+
+and data_decl = {
+  data_dir : inout_dir;
+  data_name : string;
+  data_type : generic_type;
+  data_dims : expr list;
+  data_loc : location;
+  data_layout : data_layout; 
+}
+
+and inout_dir = In | Out
+
+(* this type represents the previous version of 'data_layout' in the Ast used by other files *)
+and old_data_layout = string * mem_type * data_layout
+and data_layout = 
+    | Blocked
     | Chunked
     | Strided
     (* if custom than allow code to be written there {} *)
     | Custom
 
-(* memory layout that multiple data maps can share *)
-(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ 
-   [x] ~ [y] ~ *)
-(* layout name ~ physical storage (TODO: default to global no coords) ~ distribution ~ transfer type*)
-type data_layout = string * mem_type * dist_policy
+(* code section *)
+and code_decl = ((stmt list) option) * code list
 
-(* mem-type (global/local) ~ hostToDevice or deviceToHost ~ symbol name ~ type (int/float) ~ 
-   [x] ~ [y] ~ *)
-type data_map = mem_type * mem_location * string * generic_type * (expr * expr option) * (string * string option)
-                * (expr * expr option) * (sgmt * sgmt option * sgmt option) * string
 
-type data_maps = data_map list
-
-(* segments *)
-type target_decl = GlobalMemDecl of mem_decl | TileMemDecl of tile_decl
-
-type config_decl = group_decl list
-
-(* TODO: need to add mem list *)
-(* data sections *)
-type data_decl = {
-  constant_decls : data_stmt list;
-  layout : data_layout option;
-  inouts : data_maps
-}
-
-type code_decl = ((stmt list) option) * code list
-
-(* program *)
-(* Consists of target, config, data, and code sections *)
-type program = target_decl list * config_decl * data_decl * code_decl
-
+(* utility types *)
+and location = string list

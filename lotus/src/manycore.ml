@@ -60,7 +60,7 @@ let rec convert_iblist (il : if_block list) : string =
 and convert_inferred_iter (iter : inferred_iterator): string =
     match iter with
     | (iterName, dim, layoutName, x, y) -> (
-        let dlyt : data_layout = find_data_layout_by_symbol layoutName in
+        let dlyt : old_data_layout = find_data_layout_by_symbol layoutName in
         match dlyt with
             | (_, _, dist_policy) ->
                 match dist_policy with
@@ -81,6 +81,7 @@ and convert_inferred_iter (iter : inferred_iterator): string =
                     "for (int " ^ iterName ^ " = " ^ chunk_start_iter ^ "; " ^ iterName ^ 
                     " < " ^ chunk_start_iter ^ " + " ^ chunk_size_iter ^ "; " ^ iterName ^ "++) {\n" 
                 )
+                | Blocked -> ":p\n"
                 | Strided -> ":p\n"
                 | Custom -> ":q\n"
 
@@ -121,18 +122,17 @@ and convert_stmtlist (sl : stmt list) : string =
     | s::st -> ((convert_stmt s)  ^ "\n" ^ (convert_stmtlist st))
 
 (* TODO: Add local tile memory *)
-and convert_dmaps (dmaps : data_map list) : string =
+and convert_dmaps (dmaps : data_decl list) : string =
     match dmaps with
     | [] -> "//empty dmaps list\n"
     | d::dt -> (
-        match d with
-        | (mt, _, i, t, (dim_x, dim_y), (_, _), (_,_), (_,_,_), _) ->
-            (convert_generic t) ^ " " ^ i ^ "[" ^ (convert_expr dim_x) ^ "]" ^ 
+        (*(mt, _, i, t, (dim_x, dim_y), (_, _), (_,_), (_,_,_), _) -> *)
+            (convert_generic d.data_type) ^ " " ^ d.data_name ^ "[" ^ (convert_expr (List.nth d.data_dims 0)) ^ "]" ^ 
             (* add the second dimension if it exists *)
-            (apply_to_option dim_y "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+            (apply_to_option (Some (List.nth d.data_dims 1)) "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
             ^
             (
-            match mt with
+            match Global with
             | Global -> " __attribute__ ((section (\".dram\")));"
             | Local -> ";"
             )
@@ -166,7 +166,7 @@ and convert_data_stmtlist (sl : data_stmt list) =
 and convert_mem (prog : program) : string =
     match prog with
     | (_, _, d, _) ->
-        (convert_data_stmtlist d.constant_decls) ^ "\n" ^ (convert_dmaps d.inouts)
+        (convert_data_stmtlist d.constant_decls) ^ "\n" ^ (convert_dmaps d.data_decls)
 
 and convert_codelist (cl : code list) : string =
     match cl with

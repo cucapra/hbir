@@ -28,6 +28,10 @@ open Ast
 %token STRIDE
 %token CUSTOM_DIST
 
+%token IN
+%token OUT
+
+%token LOCATION
 %token VOLATILE
 
 %token CONFIG
@@ -50,7 +54,6 @@ open Ast
 (* iterator keywords *)
 %token WHILE
 %token FOR
-%token IN
 %token ITERATOR
 
 %token IF
@@ -177,69 +180,67 @@ let groupBlk :=
       TEMPORAL; GROUP; BLOCK; LEFT_BRACKET; num3 = INT_LITERAL; RIGHT_BRACKET; SEMICOLON;
         { TileWithTemporal (t, num3) }
 
-(* code in the data section -> parse a mix of dimension decl and data map decls *)
-(* prob only want to allow subset of the language! *)
+(* data section *)
+let dim ==
+    | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET;
+      <>
+
+let configNameLookup ==
+    | CONFIG; DOT; ~ = nameLookup;
+      <>
+
+let nameLookup :=
+    | x = ID; DOT; xs = nameLookup;
+      { x::xs }
+    | x = ID;
+      { [x] }
+
 let data :=
-    (* TODO: Allow in any order, need to make into list parse where list can contain
-    any of the fields below!  *)
-    | DATA; LEFT_BRACE; sl = dataStmt*; ly = layoutStmt?; dl = dataMap*; RIGHT_BRACE;
-    { {constant_decls = sl; layout = ly; inouts = dl} }
+    | DATA; 
+      LEFT_BRACE; 
+      cs= constantDecl*;
+      ds = dataDecl*;
+      RIGHT_BRACE;
+      { { constant_decls = cs; data_decls = ds} }
 
-let memType :=
-    | GLOBAL; SEMICOLON;
-        { Global }
-    | LOCAL; SEMICOLON;
-        { Local }
+let constantDecl :=
+    | c = ID; EQ; e = expr; SEMICOLON;
+      { Assign (c, e) }
 
-let memLocation :=
-    | HOST; SEMICOLON;
-        { Host }
-    | DEVICE; SEMICOLON;
-        { Device }
+let dataDecl :=
+    | ~ = data_dir; data_name = ID; COLON;
+      data_type = typ; data_dims = dim*;
+      LEFT_BRACE;
+      LOCATION; COLON; data_loc = configNameLookup; COMMA;
+      LAYOUT; COLON; ~ = data_layout;
+      RIGHT_BRACE;
+      { 
+        {
+         data_dir; 
+         data_name; 
+         data_type; 
+         data_dims; 
+         data_loc; 
+         data_layout 
+        } 
+      } 
 
-let distributePolicy :=
-    | CHUNK; SEMICOLON;
+let data_dir :=
+    | IN; 
+      { In }
+    | OUT;
+      { Out }
+
+let data_layout :=
+    | BLOCK;
+        { Blocked }
+    | CHUNK;
         { Chunked }
-    | STRIDE; SEMICOLON;
+    | STRIDE;
         { Strided }
 
-let dataMap :=
-     | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; EQ;
-                   BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num2 = expr; RIGHT_BRACKET;
-                   LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON;
-           {mt, ml, id, t, (num1, None), (id1, None), (num2, None), (s1, Some s2, None), id2}
-        
-        | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
-                   BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
-                   LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON;
-           {mt, ml, id, t, (num1, Some num2), (id1, None), (num3, None), (s1, Some s2, None), id2}
 
-        | id = ID; COLON; t = typ; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; EQ;
-                   BLOCK; LEFT_BRACKET; s1 = sgmts; DOT; id1 = ID; DOT; num3 = expr; RIGHT_BRACKET;
-                          LEFT_BRACKET; s2 = sgmts; DOT; id2 = ID; DOT; num4 = expr; RIGHT_BRACKET;
-                   LEFT_BRACE; s3 = sgmts; DOT; id3 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON;
-           {mt, ml, id, t, (num1, Some num2), (id1, Some id2), (num3, Some num4), (s1, Some s3, Some s2), id3}
-
-
-        (* 2d handler 
-            Syntax <type>[<x>][<y>] = block[<targ>][<targ>]
-                <targ>
-                <global/local>
-                <chunked>
-                <host/device>
-        *)
-
-        | id = ID; COLON; t = typ; 
-                        LEFT_BRACKET; dim_x = expr; RIGHT_BRACKET; 
-                        LEFT_BRACKET; dim_y = expr; RIGHT_BRACKET;
-                        EQ;
-                    BLOCK; LEFT_BRACKET; seg_x = sgmts; DOT; id_x = ID; DOT; num1 = expr; RIGHT_BRACKET;
-                    LEFT_BRACKET; seg_y = sgmts; DOT; id_y = ID; DOT; num2 = expr; RIGHT_BRACKET;
-
-                   LEFT_BRACE; s2 = sgmts; DOT; id2 = ID; LEFT_BRACKET; X; RIGHT_BRACKET; SEMICOLON; mt = memType; CHUNK; SEMICOLON; ml = memLocation; RIGHT_BRACE; SEMICOLON;
-           {mt, ml, id, t, (dim_x, Some dim_y), (id_x, Some id_y), (num1, Some num2), (seg_x, Some seg_y, Some), id2}
-    (* TODO: Once you enter code section, the parser should enter a state of just checking for SPMD (think in how yacc worked in Java) *)
-
+(* code section *)
 let code :=
     | CODE; LEFT_BRACE; RIGHT_BRACE;
         { (None, []) }
@@ -265,6 +266,18 @@ let stmtList :=
         {s1@(s2::[]) }
 
 (* define how one would parse a layout stmt *)
+let memType :=
+    | GLOBAL; SEMICOLON;
+        { Global }
+    | LOCAL; SEMICOLON;
+        { Local }
+
+let distributePolicy :=
+    | CHUNK; SEMICOLON;
+        { Chunked }
+    | STRIDE; SEMICOLON;
+        { Strided }
+
 let layoutStmt :=
     | LAYOUT; layout_name = ID; LEFT_BRACE; mt = memType; dp = distributePolicy; RIGHT_BRACE; SEMICOLON;
         { (layout_name, mt, dp) }

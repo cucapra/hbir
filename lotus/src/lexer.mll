@@ -47,7 +47,9 @@ rule token =
     (* data distribution keywords *)
     | "chunked"     { CHUNK }
     | "strided"     { STRIDE }
-
+    | "out"         { OUT }
+    | "in"          { IN }
+    | "location"    { LOCATION }
     | "config"      { CONFIG }
     | "group"       { GROUP }
     | "temporal"    { TEMPORAL }
