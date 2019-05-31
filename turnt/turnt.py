@@ -44,20 +44,24 @@ def get_out_file(config, path):
     return '{}.out'.format(base)
 
 
-def run_test(path, idx, save, diff, tap):
+def run_test(path, idx, save, diff, tap, verbose):
     config = load_config(path)
     cmd = get_command(config, path)
     out_path = get_out_file(config, path)
 
     # Run the command.
-    cwd = os.path.abspath(os.path.dirname(path))
     with tempfile.NamedTemporaryFile(delete=False) as temp:
-        subprocess.call(cmd, stdout=temp, cwd=cwd)
+        subprocess.run(
+            cmd,
+            stdout=temp,
+            stderr=None if verbose else subprocess.DEVNULL,
+            cwd=os.path.abspath(os.path.dirname(path)),
+        )
 
     try:
         # Diff the actual & expected output.
         if diff:
-            subprocess.call(['diff', '--new-file', out_path, temp.name])
+            subprocess.run(['diff', '--new-file', out_path, temp.name])
 
         # Save the new output, if requested.
         if save:
@@ -93,14 +97,16 @@ def run_test(path, idx, save, diff, tap):
               help='Show a diff between the actual and expected output.')
 @click.option('--tap/--no-tap', default=True,
               help='Summarize test success in TAP format.')
+@click.option('-v', '--verbose', is_flag=True, default=False,
+              help='Do not suppress command stderr output.')
 @click.argument('file', nargs=-1, type=click.Path(exists=True))
-def turnt(file, save, diff, tap):
+def turnt(file, save, diff, tap, verbose):
     if tap and file:
         print('1..{}'.format(len(file)))
 
     success = True
     for idx, path in enumerate(file):
-        success &= run_test(path, idx + 1, save, diff, tap)
+        success &= run_test(path, idx + 1, save, diff, tap, verbose)
 
     sys.exit(0 if success else 1)
 
