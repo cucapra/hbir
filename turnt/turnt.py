@@ -95,7 +95,7 @@ def run_test(path, idx, save, diff, tap):
               help='Summarize test success in TAP format.')
 @click.argument('file', nargs=-1, type=click.Path(exists=True))
 def turnt(file, save, diff, tap):
-    if tap:
+    if tap and file:
         print('1..{}'.format(len(file)))
 
     success = True
