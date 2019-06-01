@@ -1,12 +1,14 @@
 The HBIR Language
 ================
-
+An HBIR program specifies a kernel \\(\small f: (A_1,..,A_n) \rightarrow (B_1,..,B_m)\\) over arrays \\( \small A_k, B_k \\) of arbitrary dimensions, as implemented on a particular target machine model.
 An HBIR program consists of four *segments:*
 
 * **target**: The machine model. This segment describes the set-in-stone silicon resources of the target hardware. An instance of this segment would ship with a particular instance of the HammerBlade hardware.
-* **config**: The system configuration. This part abstracts over the physical hardware resources to expose a virtual machine model for a given application or class of applications.
-* **data**: Memory allocations. The program describes how to lay out logical array-based data structures onto the machine configuration's memories.
-* **code**: The computation itself. This is where the algorithm itself lives.
+* **config**: This section organizes physical hardware resources specified in `target` into virtual groups of computational units, called `tile groups` \\(\small \\{\mathbb{T_i}\\}_{i \in \mathbb{I}}\\).
+* **data**: This section describes how logical array inputs (i.e., \\(\small A_k\\)) and outputs (i.e., \\(\small B_k\\)) are mapped and partitioned across the \\(\\mathbb{C_i}\\) defined in `config`.
+* **code**: This section provides the implementation of \\(\small f\\) as a set of programs, \\(\small g_i\\), each destined to execute on the corresponding `tile group`, \\(\small \mathbb{T}_i\\), defined in `config`. Each \\(\small g_i \\) can read to the inputs and write to the outputs defined in `data`. Furthermore, the behavior of \\( \small g_i \\) can optionally vary across \\(\small \mathbb{T}_i \\)'s available computational units, so it may be regarded as either MPMD or SPMD, depending on the particular use case. 
+
+In other words, the implementation of \\( \small f \\) is given by a set of \\(\\small g_i:(j, A_1,..,A_n)\rightarrow (B_1,..,B_m)\\) , where \\(\small i \in \mathbb{I}\\) specifies a particular tile group, \\( \small \mathbb{T}_i \\), and \\( \small j \in \mathbb{T}_i\\) specifies a particular computational unit in that tile group. \\(\small B_1,..,B_m\\) will contain the \\(\small f(A_1,..,A_n)\\) once execution of all \\(\small g_i\\) completes.
 
 Segments
 --------
@@ -165,28 +167,23 @@ used in the code segment to express the high-level
 algorithm/application.
 
     data{
-        const dim = 500;
+      dim = 500;
+      
+      in A : int[3][3] {
+        location : config.t,
+        layout : block
+      } 
 
-        A: int[dim] = block[target.t.x_max][target.t.y_max] {
-            target.g[x];
-            host;
-        };
-
-        B: int[dim] = block[target.t.x_max][target.t.y_max] {
-            target.g[x];
-            host;
-        };
-
-        C: int[dim] = block[target.t.x_max][target.t.y_max] {
-            target.g[x];
-            device;
-        };
+      out B : int[3][3] {
+        location : config.t,
+        layout : block
+      }
     }
 
 The programmer specifies a name, the type (`int`, `float`, `bool`) and
 dimension of the data structure (i.e., vector or array of a certain size),
 how it maps to the declared groups, and several flags. Currently, flags
-for chunked, replicated, or striped allow programmers to specify how
+for blocked, replicated, or striped allow programmers to specify how
 data should be distributed for the application. A host or device flag
 can also be set to specify whether the data is an input (host) or output
 (device) of the algorithm. Simple constant declarations are also allowed

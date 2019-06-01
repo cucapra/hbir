@@ -12,6 +12,7 @@ release = ''
 # Source options.
 extensions = [
     'recommonmark',
+    'sphinxcontrib.katex',
 ]
 source_suffix = ['.rst', '.md']
 master_doc = 'index'
