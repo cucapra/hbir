@@ -9,11 +9,12 @@ version = ''
 # The full version, including alpha/beta/rc tags
 release = ''
 
-# Source options.
 extensions = [
     'recommonmark',
     'sphinxcontrib.katex',
 ]
+
+# Source options.
 source_suffix = ['.rst', '.md']
 master_doc = 'index'
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README.md']
@@ -23,6 +24,9 @@ pygments_style = None
 html_theme = 'alabaster'
 html_static_path = ['_static']
 html_css_files = ['style.css']
+
+# KaTeX rendering.
+katex_inline = ['$', '$']
 
 # LaTeX output.
 latex_elements = {}
