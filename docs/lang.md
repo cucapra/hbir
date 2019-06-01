@@ -5,7 +5,7 @@ An HBIR program specifies a kernel $f: (A_1,..,A_n) \rightarrow (B_1,..,B_m)$ ov
 An HBIR program consists of four *segments:*
 
 * **target**: The machine model. This segment describes the set-in-stone silicon resources of the target hardware. An instance of this segment would ship with a particular instance of the HammerBlade hardware.
-* **config**: This section organizes physical hardware resources specified in `target` into virtual groups of computational units, called `tile groups` $\\{\mathbb{T_i}\\}_{i \in \mathbb{I}}$.
+* **config**: This section organizes physical hardware resources specified in `target` into virtual groups of computational units, called *tile groups* $\\{\mathbb{T_i}\\}_{i \in \mathbb{I}}$.
 * **data**: This section describes how logical array inputs (i.e., $A_k$) and outputs (i.e., $B_k$) are mapped and partitioned across the $\\mathbb{C_i}$ defined in `config`.
 * **code**: This section provides the implementation of $f$ as a set of programs, $g_i$, each destined to execute on the corresponding `tile group`, $\mathbb{T}_i$, defined in `config`. Each $g_i $ can read to the inputs and write to the outputs defined in `data`. Furthermore, the behavior of $ g_i $ can optionally vary across $\mathbb{T}_i $'s available computational units, so it may be regarded as either MPMD or SPMD, depending on the particular use case.
 
