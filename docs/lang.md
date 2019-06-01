@@ -16,9 +16,6 @@ An HBIR program consists of four *segments:*
 
 In other words, the implementation of $ f $ is given by a set of $g_i:(j, A_1,..,A_n)\rightarrow (B_1,..,B_m)$, where $i \in \mathbb{I}$ specifies a particular tile group, $ \mathbb{T}_i $, and $ j \in \mathbb{T}_i$ specifies a particular computational unit in that tile group. $B_1,..,B_m$ will contain the $f(A_1,..,A_n)$ once execution of all $g_i$ completes.
 
-Segments
---------
-
 The following subsections describe the four segments of an HBIR program.
 A valid HBIR program must have all four segments with strict
 dependencies in terms of the following precedence: target, config, data,
@@ -27,7 +24,9 @@ memory mappings while the last segment describes high-level algorithmic
 details; hence the first three segments have very strict syntax and
 little support for extraneous operations.
 
-### Target
+
+Target
+------
 
 The **target** segment expresses the static parameters of the
 HammerBlade hardware that the programmer would like to target. This
@@ -100,7 +99,8 @@ Figure 1 by mapping the 2 L2 caches as a global memory with each having
 having a small local memory of 64KB and also an access width of 8B.
 
 
-### Config
+Config
+------
 
 The **config** segment expresses the dynamic configuration of the
 hardware that best fits an application. This section overlays any
@@ -164,7 +164,9 @@ maps them next to each other.
 
 Finally, programmers can also nest groups.
 
-### Data
+
+Data
+----
 
 The data segment expresses how logical data structures, currently
 vectors and arrays, map to to physical memory, both global and local,
@@ -219,7 +221,9 @@ structure is an output and will be populated by the application.
 Other flags are chunked, replicated, and striped which change how the
 data is distributed across the data structure.
 
-### Code
+
+Code
+----
 
 The code segment expresses the high-level application by tying it to
 groups defined in the config segment and using logical data structures
@@ -259,45 +263,21 @@ for loop that has data indexing into the global arrays `A`, `B`, and `C`
 hard-coded. Tile (0, 0) is also given a special instruction to call
 `bsg_finish()`. Global code is also written to declare `g_done_flag`.
 
-
-Data Types
-----------
-
-This section outlines different data types in an HBIR program (outside
-of the code segment), where the data type is valid, and a brief
-description on its use:
-
-    Name         Valid Segments   Definition
-    ------------ ---------------- -------------------------------------------------------------------
-    memory       target           Used to declare a memory instance.
-    size         target           Field in memory instance.
-    width        target           Field in memory instance.
-    tile         target           Used to declare a tile.
-    group        config           Used to declare a group.
-    block        config, data     Used to declare and refer to an execution context within a group.
-    chunked      data             Used to specify a chunked data orientation.
-    replicated   data             Used to specify a replicated data orientation.
-    striped      data             Used to specify a striped data orientation.
-    host         data             Used to specify that a logical data is an input.
-    device       data             Used to specify that a logical data is an output.
-
-
-Code Segment SPMD Specification
--------------------------------
+### The Mini-Language for Code
 
 The code segment uses a simple, C-like, SSA-form imperative language.
 This section outlines basic features that the language currently
 supports.
 
--   Generic types -- Supports ints, floats, and booleans as generics.
+- Generic types: Supports ints, floats, and booleans as generics.
 
--   Basic arithmetic expressions -- Supports basic arithmetic and
-    boolean operations with precedence rules being equivalent to C.
+- Basic arithmetic expressions: Supports basic arithmetic and
+  boolean operations with precedence rules being equivalent to C.
 
--   Declaration statements -- Supports static declarations of arrays and
-    basic generic types.
+- Declaration statements: Supports static declarations of arrays and
+  basic generic types.
 
--   Control flow statements -- Supports basic if-else, while loops, for
-    loops, and break statements.
+- Control flow statements: Supports basic if-else, while loops, for
+  loops, and break statements.
 
--   Miscellaneous features -- Supports printing as a primitive.
+- Miscellaneous features: Supports printing as a primitive.
