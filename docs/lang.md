@@ -1,13 +1,18 @@
 The HBIR Language
 =================
 
-An HBIR program specifies a kernel $f: (A_1,..,A_n) \rightarrow (B_1,..,B_m)$ over arrays $ A_k, B_k $ of arbitrary dimensions, as implemented on a particular target machine model.
+An HBIR program specifies a single computational kernel.
+The kernel is a computation that runs on a set of arbitrary-dimensional input arrays and produces more arrays as outputs.
+In other words, the program specifies the implementation of a function
+$f: (A_1,..,A_n) \rightarrow (B_1,..,B_m)$
+where each $A_k$ and $B_k$ is a multidimensional array.
+
 An HBIR program consists of four *segments:*
 
 * **target**: The machine model. This segment describes the set-in-stone silicon resources of the target hardware. An instance of this segment would ship with a particular instance of the HammerBlade hardware.
-* **config**: This section organizes physical hardware resources specified in `target` into virtual groups of computational units, called *tile groups* $\\{\mathbb{T_i}\\}_{i \in \mathbb{I}}$.
-* **data**: This section describes how logical array inputs (i.e., $A_k$) and outputs (i.e., $B_k$) are mapped and partitioned across the $\\mathbb{C_i}$ defined in `config`.
-* **code**: This section provides the implementation of $f$ as a set of programs, $g_i$, each destined to execute on the corresponding `tile group`, $\mathbb{T}_i$, defined in `config`. Each $g_i $ can read to the inputs and write to the outputs defined in `data`. Furthermore, the behavior of $ g_i $ can optionally vary across $\mathbb{T}_i $'s available computational units, so it may be regarded as either MPMD or SPMD, depending on the particular use case.
+* **config**: The system configuration. The configuration abstracts the physical hardware resources from `target` as a virtual machine model. Specifically, it organizes the machine into a set of *tile groups* $\\{\mathbb{T_i}\\}_{i \in \mathbb{I}}$ that will be programmed independently.
+* **data**: Memory allocations. This segment describes how logical array inputs $A_k$ and outputs $B_k$ are mapped and partitioned across the tile groups $\\mathbb{T_i}$ defined in `config`.
+* **code**: The computation itself. This segment lists the SPMD code to execute on each tile group. The code consists of a set of programs, $g_i$, each destined to execute on the corresponding tile group, $\mathbb{T}_i$, defined in `config`. Each $g_i$ can read to the inputs and write to the outputs defined in `data`. Furthermore, the behavior of $g_i$ can optionally vary across $\mathbb{T}_i$'s available computational units, so it may be regarded as either MPMD or SPMD, depending on the particular use case.
 
 In other words, the implementation of $ f $ is given by a set of $g_i:(j, A_1,..,A_n)\rightarrow (B_1,..,B_m)$, where $i \in \mathbb{I}$ specifies a particular tile group, $ \mathbb{T}_i $, and $ j \in \mathbb{T}_i$ specifies a particular computational unit in that tile group. $B_1,..,B_m$ will contain the $f(A_1,..,A_n)$ once execution of all $g_i$ completes.
 
