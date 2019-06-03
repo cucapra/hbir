@@ -125,18 +125,21 @@ and convert_stmtlist (sl : stmt list) : string =
 and convert_dmaps (dmaps : data_decl list) : string =
     match dmaps with
     | [] -> "//empty dmaps list\n"
-    | d::dt -> (
-        (*(mt, _, i, t, (dim_x, dim_y), (_, _), (_,_), (_,_,_), _) -> *)
-            (convert_generic d.data_type) ^ " " ^ d.data_name ^ "[" ^ (convert_expr (List.nth d.data_dims 0)) ^ "]" ^ 
-            (* add the second dimension if it exists *)
-            (apply_to_option (Some (List.nth d.data_dims 1)) "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
-            ^
-            (
-            match Global with
-            | Global -> " __attribute__ ((section (\".dram\")));"
-            | Local -> ";"
-            )
-     ) ^ ("\n" ^ (convert_dmaps dt))
+    | d::dt -> 
+      if List.length d.data_dims >= 2
+        then (
+      (convert_generic d.data_type) ^ " " ^ d.data_name ^ "[" ^ (convert_expr (List.nth d.data_dims 0)) ^ "]" ^ 
+      (* add the second dimension if it exists *)
+      (apply_to_option (Some (List.nth d.data_dims 1)) "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+      ^
+      (
+        match Global with
+          | Global -> " __attribute__ ((section (\".dram\")));"
+          | Local -> ";"
+      )
+     ) 
+        else "" 
+      ^ ("\n" ^ (convert_dmaps dt))
 
 and convert_target (prog : program) : string =
     match prog with
@@ -191,7 +194,7 @@ let convert_ast (prog : program) : string =
     match prog with
     | (_, _, _, c) ->
         match c with
-        | (None, cl) -> (convert_codelist cl) ^ "\n}"
+        | (None, cl) -> (convert_codelist cl) ^ "\n"
         | (Some sl, cl) ->
             (convert_stmtlist sl) ^
             (convert_target prog) ^
@@ -202,7 +205,14 @@ let generate_makefile (prog : program) : string =
     match prog with
     | ([], _, _, _) -> ""
     | (GlobalMemDecl _ :: _, _, _, _) -> ""
-    | (TileMemDecl (_, (e2, e3), _) :: _, _, _, _) ->
-        "bsg_tiles_X = " ^ (convert_expr e2) ^
-        "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
-        makefile
+    | (TileDecl tile :: _, _, _, _) ->
+        (
+          if List.length tile.tile_dims >= 2
+            then
+              (
+                "bsg_tiles_X = " ^ (convert_expr (List.nth tile.tile_dims 0)) ^
+                "\nbsg_tiles_Y = " ^ (convert_expr (List.nth tile.tile_dims 1))
+              )
+            else ""
+        )
+        ^ "\n" ^ makefile

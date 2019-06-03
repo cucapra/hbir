@@ -8,25 +8,25 @@ type hbir_type =
     | TemporalType of int
     | ConstType
 
-type generic_type =
+and generic_type =
     | BoolTyp
     | IntTyp
     | FloatTyp
 
-type sgmt =
+and sgmt =
     | Target
     | Config
     | Data
     | Code
 
-type literal =
+and literal =
     | XMax
     | YMax
 
 (* core *)
 (* TODO: Should wrap in binop *)
 (* TODO: Use Id elsewhere instead of string *)
-type expr =
+and expr =
     | Literal of literal
     | String of string
     | Int of int
@@ -52,10 +52,10 @@ type expr =
 
 (* inferred iterator from data section into the code section *)
 (* iterator name (i) ~ bounds ~ layout name ~ coord x ~ coord y *)
-type inferred_iterator = string * expr * string * expr * expr
+and inferred_iterator = string * expr * string * expr * expr
 
 (* spmd *)
-type stmt =
+and stmt =
     (*| Decl of *)
     | Decl of string * string
     | Assign of string * expr
@@ -92,23 +92,20 @@ type width_decl = string
 
 (*type height_decl = string*)
 
-type mem_decl = string * expr * (size_decl * width_decl)
 
-type tile_decl = string * (expr * expr) * (mem_decl option)
 
-type tile =  string * (expr * expr)
 
 type temporal = int
 
-type group_block =
-    | TileWithNothing of tile
-    | TileWithTemporal of tile * temporal
+and group_block =
+    | TileWithNothing of old_tile
+    | TileWithTemporal of old_tile * temporal
 
-type group_decl =
+and group_decl =
     | NestedGroup of (string * (expr * expr) * group_decl)
     | GroupStmt of (string * (expr * expr) * group_block)
 
-type code = tile * stmt list
+and code = old_tile * stmt list
 
 
 (************************************************************** 
@@ -117,11 +114,11 @@ Data layout typedefs
 
 ****************************************************************)
 
-type mem_type =
+and mem_type =
     | Global
     | Local
 
-type mem_location =
+and mem_location =
     | Host
     | Device
 
@@ -129,12 +126,31 @@ type mem_location =
  * when finished, all code will be 'BELOW' *)
 
 (* program *)
-type program = target_decl list * config_decl * data_section * code_decl
+and program = target_decl list * config_decl * data_section * code_decl
 
 (* target section *)
+and target = target_decl list
 and target_decl = 
   GlobalMemDecl of mem_decl | 
-  TileMemDecl of tile_decl
+  TileDecl of tile_decl
+
+and old_mem_decl = string * expr * (size_decl * width_decl)
+and mem_decl = {
+  mem_name: string;
+  mem_dims: expr list;
+  (* size and width measured in GB *)
+  mem_size: int;
+  mem_width: int;
+}
+
+
+and old_tile =  string * (expr * expr)
+and old_tile_decl = string * (expr * expr) * (mem_decl option)
+and tile_decl = {
+  tile_name: string;
+  tile_dims: expr list;
+  mem_decls: mem_decl list
+}
 
 (* config section *)
 and config_decl = group_decl list

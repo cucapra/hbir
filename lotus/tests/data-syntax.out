@@ -3,8 +3,5 @@
 #define dim 1
 
 int A[3][3] __attribute__ ((section (".dram")));
-int B[3][3] __attribute__ ((section (".dram")));
-//empty dmaps list
 
-}
 

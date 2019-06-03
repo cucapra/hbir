@@ -1,0 +1,22 @@
+target{
+  memory g[1] {
+    size : 8,
+    width: 8
+  }
+
+  tile t[5][5] {
+    memory g[4][4] {
+      size : 10,
+      width: 10
+    }
+  }
+}
+
+config{
+}
+
+data{
+}
+
+code{
+}

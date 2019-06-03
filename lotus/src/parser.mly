@@ -110,59 +110,41 @@ open Ast
 
 %%
 
-(* Rules *)
-
 let main :=
     | ~ = target; ~ = config; ~ = data; ~ = code; EOF; <>
         
 
+(* Utility Non-Terminals*)
+let dim ==
+    | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET;
+      <>
+
+(* Target Section *)
 let target :=
-    | TARGET; LEFT_BRACE; ts = targetDecl*; RIGHT_BRACE; <>
+    | TARGET; LEFT_BRACE;
+      ts = targetDecl*;
+      RIGHT_BRACE;
+      <>
 
 let targetDecl :=
-    | MEMORY; m = memory; { GlobalMemDecl m }
-    | TILE; t = tile; { TileMemDecl t }
+    | m = mem_decl; { GlobalMemDecl m }
+    | t = tile_decl; { TileDecl t }
 
-(* Possible ways to parse a memory line in the target section *)
-let memory :=
-    | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, num, (size, width)) }
-    | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, String "?", (size, width)) }
-    | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, num, ("?", width)) }
-    | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, num, (size, "?")) }
-    | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; width = WDECL; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, String "?", ("?", width)) }
-    | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; size = SIZEDECL; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, String "?", (size, "?")) }
-    | id = ID; LEFT_BRACKET; num = expr; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, num, ("?", "?")) }
-    | id = ID; LEFT_BRACKET; UNKNOWN; RIGHT_BRACKET;
-      LEFT_BRACE; SIZE; UNKNOWN; SEMICOLON; WIDTH; UNKNOWN; SEMICOLON; RIGHT_BRACE; SEMICOLON;
-        { (id, String "?", ("?", "?")) }
+let mem_decl :=
+    | MEMORY; mem_name = ID; mem_dims = dim*; 
+      LEFT_BRACE;
+      SIZE; COLON; mem_size = INT_LITERAL; COMMA;
+      WIDTH; COLON; mem_width = INT_LITERAL;
+      RIGHT_BRACE; 
+      { {mem_name; mem_dims; mem_size; mem_width} }
 
-let tile :=
-    | id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; MEMORY; m = memory; RIGHT_BRACE;
-        { (id, (num1, num2), Some m)}
-    | id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; SEMICOLON;
-        { (id, (num1, num2), None)}
+let tile_decl :=
+    | TILE; tile_name = ID; tile_dims = dim*;
+      LEFT_BRACE; mem_decls = mem_decl+; RIGHT_BRACE; 
+      { {tile_name; tile_dims; mem_decls} }
 
-let tileDecl :=
-    (* TODO: Remove this where I temporarily return -1 *)
-    | TILE; TARGET; DOT; id = ID; LEFT_BRACKET; X; RIGHT_BRACKET; LEFT_BRACKET; Y; RIGHT_BRACKET; SEMICOLON;
-        { (id, (X, Y)) }
-    | CONFIG; DOT; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET;
-        { (id, (num1, num2))}
 
+(* Config section *)
 let config :=
     | CONFIG; LEFT_BRACE; gr = group*; RIGHT_BRACE;
         { (gr) }
@@ -174,17 +156,21 @@ let group :=
         { NestedGroup (id, (num1, num2), g2)}
 
 let groupBlk :=
-    | t = tileDecl;
-        { TileWithNothing t }
-    | t = tileDecl;
+    | t = tile_decl;
+        { TileWithNothing 
+            (t.tile_name, 
+             (String "strExpr", String "strExpr")) 
+        }
+    | t = tile_decl;
       TEMPORAL; GROUP; BLOCK; LEFT_BRACKET; num3 = INT_LITERAL; RIGHT_BRACKET; SEMICOLON;
-        { TileWithTemporal (t, num3) }
+        { TileWithTemporal
+            ((t.tile_name, 
+              (String "strExpr", 
+               String "strExpr")), 
+               num3)
+        }
 
 (* data section *)
-let dim ==
-    | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET;
-      <>
-
 let configNameLookup ==
     | CONFIG; DOT; ~ = nameLookup;
       <>
@@ -198,16 +184,16 @@ let nameLookup :=
 let data :=
     | DATA; 
       LEFT_BRACE; 
-      cs= constantDecl*;
-      ds = dataDecl*;
+      cs= constant_decl*;
+      ds = data_decl*;
       RIGHT_BRACE;
       { { constant_decls = cs; data_decls = ds} }
 
-let constantDecl :=
+let constant_decl :=
     | c = ID; EQ; e = expr; SEMICOLON;
       { Assign (c, e) }
 
-let dataDecl :=
+let data_decl :=
     | ~ = data_dir; data_name = ID; COLON;
       data_type = typ; data_dims = dim*;
       LEFT_BRACE;
@@ -244,20 +230,16 @@ let data_layout :=
 let code :=
     | CODE; LEFT_BRACE; RIGHT_BRACE;
         { (None, []) }
-    | CODE; LEFT_BRACE; c = codeList; RIGHT_BRACE;
-        { (None, c) }
-    | CODE; LEFT_BRACE; s = stmtList; c = codeList; RIGHT_BRACE;
-        { (Some s, c) }
-
-let codeList :=
-    | c = codeBlock;
-        { c::[] }
-    | c1 = codeList; c2 = codeBlock;
-        { c1@(c2::[]) }
+    | CODE; LEFT_BRACE; cs = codeBlock*; RIGHT_BRACE;
+        { (None, cs) }
+    | CODE; LEFT_BRACE; s = stmtList; cs = codeBlock*; RIGHT_BRACE;
+        { (Some s, cs) }
 
 let codeBlock :=
-    | t = tileDecl; LEFT_BRACE; s = stmtList; RIGHT_BRACE;
-        { (t, s)}
+    | t = tile_decl; LEFT_BRACE; s = stmtList; RIGHT_BRACE;
+        { ((t.tile_name, 
+            (String "strExpr", 
+            String "strExpr")), s) }
 
 let stmtList :=
     | s = stmt;
@@ -266,22 +248,6 @@ let stmtList :=
         {s1@(s2::[]) }
 
 (* define how one would parse a layout stmt *)
-let memType :=
-    | GLOBAL; SEMICOLON;
-        { Global }
-    | LOCAL; SEMICOLON;
-        { Local }
-
-let distributePolicy :=
-    | CHUNK; SEMICOLON;
-        { Chunked }
-    | STRIDE; SEMICOLON;
-        { Strided }
-
-let layoutStmt :=
-    | LAYOUT; layout_name = ID; LEFT_BRACE; mt = memType; dp = distributePolicy; RIGHT_BRACE; SEMICOLON;
-        { (layout_name, mt, dp) }
-
 (* parse an inferred iterator line *)
 let iteratorStmt :=
     | INT; iterSym = ID; IN; ITERATOR; LT; bnd = expr; COMMA; layoutSym = ID; COMMA; xArg = expr; COMMA; yArg = expr; GT;
@@ -296,11 +262,6 @@ let elseIfList :=
 let elseIf :=
     | ELSE; IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
         { (e, sl) }
-
-(* only assigns allowed for now *)
-let dataStmt :=
-    | id = ID; EQ; e = expr; SEMICOLON;
-        { Assign (id, e) }
 
 let stmt :=
     | INT; id = ID; SEMICOLON;
@@ -438,12 +399,3 @@ let typ :=
     | INT;
         { IntTyp }
 
-let sgmts :=
-    | TARGET;
-        { Target }
-    | CONFIG;
-        { Config }
-    | DATA;
-        { Data }
-    | CODE;
-        { Code }

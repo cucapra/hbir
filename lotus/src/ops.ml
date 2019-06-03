@@ -82,13 +82,12 @@ let pretty_program (p : program) : string =
     match p with
     | ([], _, _, _) -> "No target specified"
     | (GlobalMemDecl m1 :: _, _, _, _) ->
-        (match m1 with (s1, e1, (size1, width1)) -> "target mem " ^ s1 ^ " with dim " ^ (pretty e1)
-        ^ " with size " ^ size1 ^ " and width " ^ width1) ^ " "
-    | (TileMemDecl t :: _, config, _, code) ->
-        (match t with (s2, (e2, e3), m2) -> "target tile " ^ s2 ^ " with dim " ^ (pretty e2) ^ ", " ^ (pretty e3) ^ " and with memory " ^ (match m2 with
-            | None -> "empty memory"
-            | Some mem -> match mem with (s3, e4, (size2, width2)) ->
-                s3 ^ " with mem dim " ^ (pretty e4) ^ " with size " ^ size2 ^ " and width " ^ width2)) ^ "\n" ^
+        "target mem " ^ m1.mem_name ^ " with dim " ^ (pretty (List.nth m1.mem_dims 0))
+        ^ " with size " ^ (string_of_int m1.mem_size) ^ " and width " ^ (string_of_int m1.mem_width) ^ " "
+    | (TileDecl t :: _, config, _, code) ->
+        "target tile " ^ t.tile_name ^ " with dim " ^ (pretty (List.nth t.tile_dims 0)) ^ ", " ^ (pretty (List.nth t.tile_dims 1)) ^ " and with memory " ^ 
+      let t_mem = List.nth t.mem_decls 0 in
+        t.tile_name ^ " with mem dim " ^ (pretty (List.nth t.tile_dims 0)) ^ " with size " ^ (string_of_int t_mem.mem_size) ^ " and width " ^ (string_of_int t_mem.mem_width) ^ "\n" ^
         (match config with
         | [] -> ""
         | g::_ -> (match g with

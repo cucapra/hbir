@@ -31,10 +31,10 @@ let string_of_bounds(b : bounds) : string =
         (convert_expr x2) ^ ", " ^ (convert_expr y2)
 
 (* helper to convert tile coords to a string *)
-let string_of_tile(t: tile) : string = 
-        match t with
-        | (_, (x, y)) ->
-        (convert_expr x) ^ ", " ^ (convert_expr y)
+let string_of_tile(t: tile_decl) : string = 
+  if List.length t.tile_dims >= 2
+    then (convert_expr (List.nth t.tile_dims 0)) ^ ", " ^ (convert_expr (List.nth t.tile_dims 1))
+    else ""
 
 (* define some boilerplate strings *)
 let f1_includes (gen_wrapper: bool) : string = 
@@ -78,12 +78,10 @@ let f1_load_kernel (b : bounds) : string =
         "\t" ^ "hammaLoadMultiple(fd, manycore_program, " ^ (string_of_bounds b) ^ ");\n"
 
 (* call an operation for each tile in the bounds *)
-let func_within_bounds (func : tile -> string) (b : bounds) : string =
+let func_within_bounds (func : tile_decl -> string) (b : bounds) : string =
         match b with
         | (x1, y1, x2, y2) ->
-                let x : expr = String "x" in
-                let y : expr = String "y" in
-                let t : tile = ("", (x, y)) in 
+                let t : tile_decl = {tile_name="what's this for?"; tile_dims=[]; mem_decls=[]} in 
                 "\t"     ^ "for (int y = " ^ ( convert_expr y1 ) ^ "; y < " ^ ( convert_expr y2 ) ^ "; y++) {\n" ^
                 "\t\t"   ^ "for (int x = " ^ ( convert_expr x1 ) ^ "; x < " ^ ( convert_expr x2 ) ^ "; x++) {\n" ^
                 "\t\t"   ^ func(t) ^
@@ -99,7 +97,7 @@ let f1_memcpy (dir : string) (b : bounds) (args : memcpy) : string =
                 let num_bytes = dim ^ " * sizeof(int)" in
                 let host_symbol = f1_host_symbol(symbol) in
                 let device_symbol = f1_device_symbol(symbol) in
-                let single_memcpy (t : tile) : string = 
+                let single_memcpy (t : tile_decl) : string = 
                         "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_tile(t) ^ " ,  manycore_program, \"" ^ 
                         device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", " ^ dir ^ ");\n"
                 in
@@ -265,13 +263,20 @@ let generate_f1_makefile (prog : program) : string =
     match prog with
     | ([], _, _, _) -> ""
     | (GlobalMemDecl _ :: _, _, _, _) -> ""
-    | (TileMemDecl (_, (e2, e3), _) :: _, _, _, _) ->
-        "bsg_tiles_X = " ^ (convert_expr e2) ^
-        "\nbsg_tiles_Y = " ^ (convert_expr e3) ^ "\n" ^
-        makefile
+    | (TileDecl tile :: _, _, _, _) ->
+        (
+          if List.length tile.tile_dims >= 2
+            then
+              "bsg_tiles_X = " ^ (convert_expr (List.nth tile.tile_dims 0)) ^
+              "\nbsg_tiles_Y = " ^ (convert_expr (List.nth tile.tile_dims 1))
+            else ""
+        ) ^
+        makefile ^ "\n"
 
 (* any preprocessing before actually doing the compilation, like constructing the symbol table or static analysis? *)
 let preprocessing_phase (prog : program) =
     match prog with
     | (_, _, d, _) -> 
-        (generate_layout_symbol_table (List.nth d.data_decls 0))
+        if List.length d.data_decls > 0
+          then (generate_layout_symbol_table (List.nth d.data_decls 0))
+          else ()
