@@ -2,28 +2,33 @@ open Ast
 
 let rec pretty (e : expr) : string =
     match e with
-    | Literal _ -> "literal"
-    | String str -> str
+      String str -> str
+    | Bool b -> string_of_bool b
     | Int i -> string_of_int i
     | Float i -> string_of_float i
+    | Deref (a, i) -> a ^ pretty i
+    | BinApp (binop, e1, e2) -> 
+        pretty e1 ^ pretty_binop binop ^ pretty e2
     | Id i -> i
     | X -> "x"
     | Y -> "y"
-    | Mem (i, d1, d2) -> i ^ pretty d1 ^
-        (apply_to_option d2 "" (fun (d : expr) : string -> pretty d))
-    | Plus (e1, e2) -> (pretty e1) ^ " + " ^ (pretty e2)
-    | Minus (e1, e2) -> (pretty e1) ^ " - " ^ (pretty e2)
-    | Times (e1, e2) -> (pretty e1) ^ " * " ^ (pretty e2)
-    | Div (e1, e2) -> (pretty e1) ^ " / " ^ (pretty e2)
-    | Bool b -> string_of_bool b
-    | Eq (e1, e2) -> (pretty e1) ^ " == " ^ (pretty e2)
-    | Neq (e1, e2) -> (pretty e1) ^ " != " ^ (pretty e2)
-    | Lt (e1, e2) -> (pretty e1) ^ " < " ^ (pretty e2)
-    | Gt (e1, e2) -> (pretty e1) ^ " > " ^ (pretty e2)
-    | Lteq (e1, e2) -> (pretty e1) ^ " <= " ^ (pretty e2)
-    | Gteq (e1, e2) -> (pretty e1) ^ " >= " ^ (pretty e2)
-    | And (e1, e2) -> (pretty e1) ^ " && " ^ (pretty e2)
-    | Or (e1, e2) -> (pretty e1) ^ " || " ^ (pretty e2)
+    | Xmax -> "xmax"
+    | Ymax -> "ymax"
+
+and pretty_binop (binop : binop) : string =
+  match binop with
+      Plus -> "+"
+    | Minus -> "-"
+    | Times -> "*"
+    | Div -> "/"
+    | Eq -> "=="
+    | Neq -> "!="
+    | Lt -> "<"
+    | Gt -> ">"
+    | Lteq -> "<="
+    | Gteq -> ">="
+    | And -> "&&"
+    | Or -> "||"
 
 let pretty_stmt (s : stmt) : string =
     match s with
@@ -34,7 +39,8 @@ let pretty_stmt (s : stmt) : string =
       (apply_to_option dim_2 "" (fun (d : expr) : string -> pretty d)) 
       ^ ("= ") ^ (pretty expr2)
     | DeclAssign (_,_,_) -> "declAssign "
-    | If (_,_,_) -> "if "
+    | If (_,_) -> "if "
+    | IfElse (_,_,_) -> "if-else"
     | While (_,_) -> "while "
     | For (_,_) -> "for "
     | For_Infer (_,_) -> "for "
@@ -44,27 +50,35 @@ let pretty_stmt (s : stmt) : string =
 
 let rec eval (e : expr) : int =
     match e with
-    | Literal _ -> -1
     | String _ -> -1
+    | Bool b -> if b then 1 else 0
     | Int i -> i
     | Float _ -> -1
     | Id _ -> -1
     | X -> 0
     | Y -> 0
-    | Mem (_, _, _) -> -1
-    | Plus (e1, e2) -> (eval e1) + (eval e2)
-    | Minus (e1, e2) -> (eval e1) - (eval e2)
-    | Times (e1, e2) -> (eval e1) * (eval e2)
-    | Div (e1, e2) -> (eval e1) / (eval e2)
-    | Bool b -> if b then 1 else 0
-    | Eq (e1, e2) -> if ((eval e1) = (eval e2)) then 1 else 0
-    | Neq (e1, e2) -> if ((eval e1) <> (eval e2)) then 1 else 0
-    | Lt (e1, e2) -> if ((eval e1) < (eval e2)) then 1 else 0
-    | Gt (e1, e2) -> if ((eval e1) > (eval e2)) then 1 else 0
-    | Lteq (e1, e2) -> if ((eval e1) <= (eval e2)) then 1 else 0
-    | Gteq (e1, e2) -> if ((eval e1) >= (eval e2)) then 1 else 0
-    | And (e1, e2) -> if (((eval e1) * (eval e2)) = 1) then 1 else 0
-    | Or (e1, e2) -> if (((eval e1) + (eval e2)) = 1) then 1 else 0
+    | Xmax -> -1
+    | Ymax -> -1
+    | Deref (_,_) -> -1
+
+    | BinApp (binop, e1, e2) -> 
+        (eval_binop binop) (eval e1) (eval e2)
+
+and eval_binop (binop : binop) : (int -> int -> int) =
+  match binop with
+      Plus  -> (+)
+    | Minus -> (-)
+    | Times -> (fun (x, y) -> x * y)
+    | Div   ->  / 
+    | Eq    -> (fun (x y) -> 
+        if ((eval e1) = (eval e2)) then 1 else 0)
+    | Neq   -> if ((eval e1) <> (eval e2)) then 1 else 0
+    | Lt    -> if ((eval e1) < (eval e2)) then 1 else 0
+    | Gt    -> if ((eval e1) > (eval e2)) then 1 else 0
+    | Lteq  -> if ((eval e1) <= (eval e2)) then 1 else 0
+    | Gteq  -> if ((eval e1) >= (eval e2)) then 1 else 0
+    | And   -> if (((eval e1) * (eval e2)) = 1) then 1 else 0
+    | Or    -> if (((eval e1) + (eval e2)) = 1) then 1 else 0
 
 let rec pretty_stmtlist (sl : stmt list) : string =
     match sl with
