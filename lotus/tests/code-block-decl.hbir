@@ -1,0 +1,14 @@
+target {
+}
+
+config {
+}
+
+data {
+}
+
+code {
+  tg0.tg1 {
+    int hello = 0;
+  }
+}

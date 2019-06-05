@@ -178,10 +178,8 @@ let configNameLookup ==
       <>
 
 let nameLookup :=
-    | x = ID; DOT; xs = nameLookup;
-      { x::xs }
-    | x = ID;
-      { [x] }
+    | ~ = separated_nonempty_list(DOT; {}, ~ = ID; <>);
+      <>
 
 let data :=
     | DATA; 
@@ -238,8 +236,8 @@ let code :=
         { (Some s, cs) }
 
 let codeBlock :=
-    | t = tile_decl; LEFT_BRACE; s = stmt*; RIGHT_BRACE;
-        { ((t.tile_name, 
+    | t = nameLookup; LEFT_BRACE; s = stmt*; RIGHT_BRACE;
+        { ((List.hd t, 
             (String "strExpr", 
             String "strExpr")), s) }
 
