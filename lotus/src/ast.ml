@@ -97,14 +97,6 @@ type width_decl = string
 
 type temporal = int
 
-and group_block =
-    | TileWithNothing of old_tile
-    | TileWithTemporal of old_tile * temporal
-
-and group_decl =
-    | NestedGroup of (string * (expr * expr) * group_decl)
-    | GroupStmt of (string * (expr * expr) * group_block)
-
 and code = old_tile * stmt list
 
 
@@ -153,7 +145,22 @@ and tile_decl = {
 }
 
 (* config section *)
-and config_decl = group_decl list
+and config_decl = top_level_group_decl list
+
+and top_level_group_decl = {
+  tile_group_name : string;
+  group_decls : group_decl list
+}
+
+and group_decl = {
+  group_name : string; 
+  ranges : range list;
+  sub_groups : group_decl list
+}
+
+and range = 
+      SingletonRange of expr
+    | SliceRange of expr * expr
 
 (* data section *)
 and data_section = {

@@ -51,6 +51,7 @@ rule token =
     | "in"          { IN }
     | "location"    { LOCATION }
     | "config"      { CONFIG }
+    | "at"          { AT }
     | "group"       { GROUP }
     | "temporal"    { TEMPORAL }
     | "block"       { BLOCK }

@@ -28,6 +28,7 @@ open Ast
 %token STRIDE
 %token CUSTOM_DIST
 
+%token AT
 %token IN
 %token OUT
 
@@ -146,29 +147,30 @@ let tile_decl :=
 
 (* Config section *)
 let config :=
-    | CONFIG; LEFT_BRACE; gr = group*; RIGHT_BRACE;
-        { (gr) }
+    | CONFIG; LEFT_BRACE; ~ = top_level_decl*; RIGHT_BRACE;
+      <>
 
-let group :=
-    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g1 = groupBlk; RIGHT_BRACE; SEMICOLON;
-        { GroupStmt (id, (num1, num2), g1)}
-    | GROUP; id = ID; LEFT_BRACKET; num1 = expr; RIGHT_BRACKET; LEFT_BRACKET; num2 = expr; RIGHT_BRACKET; LEFT_BRACE; g2 = group; RIGHT_BRACE; SEMICOLON;
-        { NestedGroup (id, (num1, num2), g2)}
+let top_level_decl :=
+    | IN; tile_group_name = ID; 
+      LEFT_BRACE; group_decls = group_decl*; RIGHT_BRACE;
+      { {tile_group_name; group_decls} }
 
-let groupBlk :=
-    | t = tile_decl;
-        { TileWithNothing 
-            (t.tile_name, 
-             (String "strExpr", String "strExpr")) 
-        }
-    | t = tile_decl;
-      TEMPORAL; GROUP; BLOCK; LEFT_BRACKET; num3 = INT_LITERAL; RIGHT_BRACKET; SEMICOLON;
-        { TileWithTemporal
-            ((t.tile_name, 
-              (String "strExpr", 
-               String "strExpr")), 
-               num3)
-        }
+let group_decl :=
+    | GROUP; group_name = ID; AT; ~ = ranges; SEMICOLON;
+      { {group_name; ranges; sub_groups = [] } }
+
+let ranges :=
+    | LEFT_PAREN; 
+      ~ = separated_nonempty_list(COMMA; {}, ~ = range; <>);
+      RIGHT_PAREN;
+      <>
+
+let range :=
+    | x = expr; 
+      { SingletonRange x }
+    | x = expr; COLON; y = expr;
+      { SliceRange (x, y) }
+
 
 (* data section *)
 let configNameLookup ==
@@ -232,20 +234,14 @@ let code :=
         { (None, []) }
     | CODE; LEFT_BRACE; cs = codeBlock*; RIGHT_BRACE;
         { (None, cs) }
-    | CODE; LEFT_BRACE; s = stmtList; cs = codeBlock*; RIGHT_BRACE;
+    | CODE; LEFT_BRACE; s = stmt*; cs = codeBlock*; RIGHT_BRACE;
         { (Some s, cs) }
 
 let codeBlock :=
-    | t = tile_decl; LEFT_BRACE; s = stmtList; RIGHT_BRACE;
+    | t = tile_decl; LEFT_BRACE; s = stmt*; RIGHT_BRACE;
         { ((t.tile_name, 
             (String "strExpr", 
             String "strExpr")), s) }
-
-let stmtList :=
-    | s = stmt;
-        { s::[] }
-    | s1 = stmtList; s2 = stmt;
-        {s1@(s2::[]) }
 
 (* define how one would parse a layout stmt *)
 (* parse an inferred iterator line *)
@@ -253,14 +249,9 @@ let iteratorStmt :=
     | INT; iterSym = ID; IN; ITERATOR; LT; bnd = expr; COMMA; layoutSym = ID; COMMA; xArg = expr; COMMA; yArg = expr; GT;
         { iterSym, bnd, layoutSym, xArg, yArg }
 
-let elseIfList :=
-    | e = elseIf;
-        { e::[] }
-    | e1 = elseIfList; e2 = elseIf;
-        { e1@(e2::[]) }
-
 let elseIf :=
-    | ELSE; IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | ELSE; IF; LEFT_PAREN; e = expr; RIGHT_PAREN; 
+      LEFT_BRACE; sl = stmt*; RIGHT_BRACE;
         { (e, sl) }
 
 let stmt :=
@@ -304,25 +295,18 @@ let stmt :=
                PLUS; EQ; e2 = expr; SEMICOLON;
         { MemAssign ((id, dim_1, Some dim_2), Plus (Mem(id, dim_1, Some dim_2), e2)) }
 
-    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmt*; RIGHT_BRACE;
         {If((e, sl), [], None) }
-    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmtList; RIGHT_BRACE;
-      ELSE; LEFT_BRACE; sl2 = stmtList; RIGHT_BRACE;
+    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmt*; RIGHT_BRACE;
+      ELSE; LEFT_BRACE; sl2 = stmt*; RIGHT_BRACE;
         {If((e, sl1), [], Some sl2) }
-    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmtList; RIGHT_BRACE;
-      el = elseIfList;
-        {If((e, sl1), el, None) }
-    | IF; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl1 = stmtList; RIGHT_BRACE;
-      el = elseIfList;
-      ELSE; LEFT_BRACE; sl2 = stmtList; RIGHT_BRACE;
-        {If((e, sl1), el, Some sl2) }
-    | WHILE; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | WHILE; LEFT_PAREN; e = expr; RIGHT_PAREN; LEFT_BRACE; sl = stmt*; RIGHT_BRACE;
         {While(e, sl) }
-    | FOR; LEFT_PAREN; s1 = stmt; e1 = expr; SEMICOLON; i = ID; EQ; e2=expr; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | FOR; LEFT_PAREN; s1 = stmt; e1 = expr; SEMICOLON; i = ID; EQ; e2=expr; RIGHT_PAREN; LEFT_BRACE; sl = stmt*; RIGHT_BRACE;
         { For((s1, e1, (i,e2)), sl) }
 
     (* inferred interator parsing *)
-    | FOR; LEFT_PAREN; iter = iteratorStmt; RIGHT_PAREN; LEFT_BRACE; sl = stmtList; RIGHT_BRACE;
+    | FOR; LEFT_PAREN; iter = iteratorStmt; RIGHT_PAREN; LEFT_BRACE; sl = stmt*; RIGHT_BRACE;
         { For_Infer( iter, sl ) }
 
     | PRINTF; LEFT_PAREN; s = STR; RIGHT_PAREN; SEMICOLON;

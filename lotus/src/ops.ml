@@ -90,10 +90,10 @@ let pretty_program (p : program) : string =
         t.tile_name ^ " with mem dim " ^ (pretty (List.nth t.tile_dims 0)) ^ " with size " ^ (string_of_int t_mem.mem_size) ^ " and width " ^ (string_of_int t_mem.mem_width) ^ "\n" ^
         (match config with
         | [] -> ""
-        | g::_ -> (match g with
-                    | NestedGroup _ -> "nested group"
-                    | GroupStmt gs -> match gs with (s1, (e1, e2), _) ->
-                      "config group " ^ s1 ^ " with dim " ^ (pretty e1) ^ ", " ^ (pretty e2))
+        | top_level_g::_ ->
+            if List.length (List.hd top_level_g.group_decls).sub_groups > 0
+              then "nested group"
+            else "config group "
         ) ^ "\n" ^
         ("data with dim " (*^ (pretty d)*)) 
           ^ "\n" ^

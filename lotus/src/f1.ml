@@ -185,31 +185,7 @@ let f1_split_dmaps (dmaps : data_decl list) =
         split ( dmaps, [], [] )
 
 (* figure out how many tiles should be allocated for a particular kernel *)
-let f1_get_num_tiles ( config : config_decl ) : bounds =
-  match config with
-  | [] -> (Int 0, Int 0, Int 0, Int 0)
-  | (g) ->
-    let rec traverse_configs (( groups : group_decl list ), ( bnds : bounds list )) =
-      match groups with
-      | [] -> bnds
-      | b::bt ->
-              match b with 
-              (* TODO recursion into the group, not supported for now *)
-              | NestedGroup (_, (_ , _) , _) -> bnds
-              (* extract dimension of the group *)
-              | GroupStmt (_, (w , h) , _) ->
-                      (* add configs to the list *)
-                      let new_bounds = (Int 0, Int 1, w, Plus(h, Int 1)) in
-                      let new_blist = new_bounds::bnds in
-                      (* TODO recursion for next config in the list *)
-                      traverse_configs(bt, new_blist)
-    (* get the dimensions as a string for now *)
-    in
-    let bnds = traverse_configs(g, []) in
-    (* TODO just return the first one *)
-    match bnds with
-    | [] -> (Int 0, Int 0, Int 0, Int 0)
-    | b::_ -> b  
+let f1_get_num_tiles ( _: config_decl ) : bounds = (Int 0, Int 0, Int 0, Int 0)
 
 (* emits the host code *)
 let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
