@@ -1,8 +1,10 @@
 open Ast
-open Layouts
+(*open Layouts *)
 
 (* BSG Manycore backend to target Manycore RTL Simulator and F1 Instance *)
 (* Translates AST to C-like code and generates Makefile to run on Manycore *)
+
+let (#%) = Printf.sprintf
 
 let makefile = "all: main.run\n
 proc_exe_logs: X0_Y0.pelog X1_Y0.pelog\n
@@ -14,48 +16,41 @@ main.riscv: $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) ../common/crt.o
 main.o: Makefile\n
 include ../../mk/Makefile.tail_rules"
 
-let convert_generic (g : generic_type) : string =
+let typ_emit (g : typ) : string =
     match g with
     | BoolTyp -> "boolean"
     | IntTyp -> "int"
     | FloatTyp -> "float"
 
-let rec convert_expr (e : expr) : string =
+let rec expr_emit (e : expr) : string =
+  let emit_from_binop (binop : binop) : string =
+    match binop with
+        | Plus -> "+"
+        | Minus -> "-"
+        | Mul -> "*"
+        | Div -> "/"
+        | Eq -> "=="
+        | Neq -> "!="
+        | Lt -> "<"
+        | Gt -> ">"
+        | Lteq -> "<="
+        | Gteq -> ">="
+        | And -> "&&"
+        | Or -> "||" in
+
     match e with
-    (*TODO: Need to fix this *)
-    | Literal l ->
-        (match l with
-        | XMax -> "x_max"
-        | YMax -> "y_max")
-    | String str -> str
-    | Int i -> string_of_int i
-    | Float i -> string_of_float i
-    | X -> "x"
-    | Y -> "y"
-    | Id i -> i
-    | Mem (i, d1, d2) -> i ^ "[" ^ (convert_expr d1) ^ "]" ^
-        (apply_to_option d2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
-    | Plus (e1, e2) -> "("^(convert_expr e1) ^ " + " ^ (convert_expr e2)^")"
-    | Minus (e1, e2) -> "("^(convert_expr e1) ^ " - " ^ (convert_expr e2)^")"
-    | Times (e1, e2) -> "("^(convert_expr e1) ^ " * " ^ (convert_expr e2)^")"
-    | Div (e1, e2) -> "("^(convert_expr e1) ^ " / " ^ (convert_expr e2)^")"
-    | Bool b -> (match b with
-                | true -> "1"
-                | false -> "0")
-    | Eq (e1, e2) -> "("^(convert_expr e1) ^ " == " ^ (convert_expr e2)^")"
-    | Neq (e1, e2) -> "("^(convert_expr e1) ^ " != " ^ (convert_expr e2)^")"
-    | Lt (e1, e2) -> "("^(convert_expr e1) ^ " < " ^ (convert_expr e2)^")"
-    | Gt (e1, e2) -> "("^(convert_expr e1) ^ " > " ^ (convert_expr e2)^")"
-    | Lteq (e1, e2) -> "("^(convert_expr e1) ^ " <= " ^ (convert_expr e2)^")"
-    | Gteq (e1, e2) -> "("^(convert_expr e1) ^ " >= " ^ (convert_expr e2)^")"
-    | And (e1, e2) -> "("^(convert_expr e1) ^ " && " ^ (convert_expr e2)^")"
-    | Or (e1, e2) -> "("^(convert_expr e1) ^ " || " ^ (convert_expr e2)^")"
+    | VarExpr str -> str
+    | IntExpr v -> string_of_int v
+    | FloatExpr v -> string_of_float v
+    | BoolExpr b -> if b then "true" else "false"
+    | DerefExpr (e, es) -> 
+        let dims = 
+          List.fold_left (fun s e -> "%s[%s]" #% s (expr_emit e)) "" es in
+          (expr_emit e) ^ dims
+    | BinAppExpr (binop, e1, e2) -> 
+        "%s %s %s" #% (expr_emit e1) (emit_from_binop binop) (expr_emit e2)
 
-let rec convert_iblist (il : if_block list) : string =
-    match il with
-    | [] -> ""
-    | i::it -> "else " ^ (convert_ib i) ^ (convert_iblist it)
-
+(*
 (* synthesize an access pattern based on the user specified data layout *)
 and convert_inferred_iter (iter : inferred_iterator): string =
     match iter with
@@ -67,16 +62,16 @@ and convert_inferred_iter (iter : inferred_iterator): string =
                 | Chunked -> (
                     let chunk_size_iter = "chunked_size_" ^ iterName in
                     let chunk_start_iter = "chunked_mem_start_" ^ iterName in
-                    "int " ^ chunk_size_iter ^ " = " ^ (convert_expr dim) ^ "/(bsg_tiles_X * bsg_tiles_Y);\n" ^
+                    "int " ^ chunk_size_iter ^ " = " ^ (expr_emit dim) ^ "/(bsg_tiles_X * bsg_tiles_Y);\n" ^
                     
                     (* last one should do a lil' more *)
-                    "if ((" ^ (convert_expr x) ^ " + " ^ (convert_expr y) ^ " * bsg_tiles_X) == num_tiles - 1) {\n" ^
-                    chunk_size_iter ^ " += " ^ (convert_expr dim) ^ " % num_tiles;\n" ^
+                    "if ((" ^ (expr_emit x) ^ " + " ^ (expr_emit y) ^ " * bsg_tiles_X) == num_tiles - 1) {\n" ^
+                    chunk_size_iter ^ " += " ^ (expr_emit dim) ^ " % num_tiles;\n" ^
                     "}\n" ^
 
 
-                    "int " ^ chunk_start_iter ^ " = (" ^ (convert_expr x) ^ " * " ^
-                    (convert_expr y) ^ " * " ^ "bsg_tiles_X" ^ ") * " ^ chunk_size_iter ^ ";\n" ^
+                    "int " ^ chunk_start_iter ^ " = (" ^ (expr_emit x) ^ " * " ^
+                    (expr_emit y) ^ " * " ^ "bsg_tiles_X" ^ ") * " ^ chunk_size_iter ^ ";\n" ^
 
                     "for (int " ^ iterName ^ " = " ^ chunk_start_iter ^ "; " ^ iterName ^ 
                     " < " ^ chunk_start_iter ^ " + " ^ chunk_size_iter ^ "; " ^ iterName ^ "++) {\n" 
@@ -86,25 +81,41 @@ and convert_inferred_iter (iter : inferred_iterator): string =
                 | Custom -> ":q\n"
 
     )
+*)
+and stmt_emit (_ : stmt) : string = ""
+(*
+  match s with
+    | Assign (x, e) -> "%s = %s" #% x (expr_emit e)
+    | MemAssign (a, es, e) -> 
+        let dims = 
+          List.fold_left (fun s e -> "%s[%s]" #% s (expr_emit e)) "" es in
+        "%s%s = %s" #% a dims (expr_emit e)
+    | DeclAssign (typ, x, e) -> "%s %s = %s" #% (typ_emit typ) (expr_emit e)
+    | If of (expr * stmt list) list
+    | While of expr * stmt list
+    | For of stmt * expr * stmt * (stmt list)
+    | Break of string
+    | Print of string
+    | BsgFinish
 
 and convert_stmt (s : stmt) : string =
     match s with
     | Decl (str1, str2) -> str1 ^ " " ^ str2 ^ ";"
-    | Assign (str1, expr) -> str1 ^ (" = ") ^ (convert_expr expr) ^ ";"
+    | Assign (str1, expr) -> str1 ^ (" = ") ^ (expr_emit expr) ^ ";"
     | MemAssign ((symbol, dim_1, dim_2), expr2) -> 
-        symbol ^ "[" ^ (convert_expr dim_1) ^ "]" ^
-        (apply_to_option dim_2 "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
-        ^ ("= ") ^ (convert_expr expr2) ^ ";"
-    | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"
-        (*if(String.equal (convert_expr expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
-        else str1 ^ " " ^ str2 ^ (" = ") ^ (convert_expr expr) ^ ";"*)
+        symbol ^ "[" ^ (expr_emit dim_1) ^ "]" ^
+        (apply_to_option dim_2 "" (fun (d : expr) : string -> "[" ^ (expr_emit d) ^ "]"))
+        ^ ("= ") ^ (expr_emit expr2) ^ ";"
+    | DeclAssign (str1, str2, expr) -> str1 ^ " " ^ str2 ^ (" = ") ^ (expr_emit expr) ^ ";"
+        (*if(String.equal (expr_emit expr) "(x + (y * x_max))") then str1 ^ " " ^ str2 ^ (" = ") ^ "tile_id*csize;"
+        else str1 ^ " " ^ str2 ^ (" = ") ^ (expr_emit expr) ^ ";"*)
     | If (i,il,s) -> (
         match s with
         | None -> ((convert_ib i) ^ (convert_iblist il))
         | Some st -> ((convert_ib i) ^ (convert_iblist il) ^ "else {\n" ^ (convert_stmtlist st) ^ "}\n")
         )
-    | While (e,sl) -> "while ( " ^ (convert_expr e) ^ " ) {\n" ^ (convert_stmtlist sl) ^ "}\n"
-    | For ((s1,e1,(i,e2)),sl) -> "for (" ^ (convert_stmt s1) ^ " " ^ (convert_expr e1) ^ "; " ^ i ^ "=" ^ (convert_expr e2) ^ ") {\n" ^
+    | While (e,sl) -> "while ( " ^ (expr_emit e) ^ " ) {\n" ^ (convert_stmtlist sl) ^ "}\n"
+    | For ((s1,e1,(i,e2)),sl) -> "for (" ^ (convert_stmt s1) ^ " " ^ (expr_emit e1) ^ "; " ^ i ^ "=" ^ (expr_emit e2) ^ ") {\n" ^
                             (convert_stmtlist sl) ^ "}\n"
     | For_Infer (iter, sl) -> (convert_inferred_iter iter) ^
                             (convert_stmtlist sl) ^ "}\n"
@@ -114,7 +125,7 @@ and convert_stmt (s : stmt) : string =
 
 and convert_ib (i : if_block) : string =
     match i with
-    | (e,sl) -> "if ( " ^ (convert_expr e) ^ " ) {\n" ^ (convert_stmtlist sl) ^ "} "
+    | (e,sl) -> "if ( " ^ (expr_emit e) ^ " ) {\n" ^ (convert_stmtlist sl) ^ "} "
 
 and convert_stmtlist (sl : stmt list) : string =
     match sl with
@@ -128,9 +139,9 @@ and convert_dmaps (dmaps : data_decl list) : string =
     | d::dt -> 
       if List.length d.data_dims >= 2
         then (
-      (convert_generic d.data_type) ^ " " ^ d.data_name ^ "[" ^ (convert_expr (List.nth d.data_dims 0)) ^ "]" ^ 
+      (typ_emit d.data_type) ^ " " ^ d.data_name ^ "[" ^ (expr_emit (List.nth d.data_dims 0)) ^ "]" ^ 
       (* add the second dimension if it exists *)
-      (apply_to_option (Some (List.nth d.data_dims 1)) "" (fun (d : expr) : string -> "[" ^ (convert_expr d) ^ "]"))
+      (apply_to_option (Some (List.nth d.data_dims 1)) "" (fun (d : expr) : string -> "[" ^ (expr_emit d) ^ "]"))
       ^
       (
         match Global with
@@ -145,7 +156,7 @@ and convert_target (prog : program) : string =
     match prog with
     | (t, _, _, _) ->
         (*let memsize = match d with
-                      | (e, _) -> (convert_expr e) in*)
+                      | (e, _) -> (expr_emit e) in*)
         (*TODO: Hard-code chunk size for now*)
         match t with
         | [] -> ""
@@ -157,7 +168,7 @@ and convert_target (prog : program) : string =
 
 and convert_data_stmt (s : data_stmt) : string =
     match s with
-    | Assign (str1, expr) -> "#define " ^ str1 ^ " " ^ (convert_expr expr)
+    | Assign (str1, expr) -> "#define " ^ str1 ^ " " ^ (expr_emit expr)
 
 (* stmt list that shows ups in the data section, but throw define in front of everything *)
 and convert_data_stmtlist (sl : data_stmt list) =
@@ -183,12 +194,14 @@ and convert_codelist (cl : code list) : string =
             "csize = csize + ( dim % num_tiles );\n}\n" ^*)
             (convert_stmtlist sl)  ^ "\n" ^ convert_codelist(ct))
          else
-            (convert_codelist(ct) ^ "if(tile_id == bsg_x_y_to_id(" ^ (convert_expr e1) ^ ", " ^ (convert_expr e2) ^ ")){\n" ^
+            (convert_codelist(ct) ^ "if(tile_id == bsg_x_y_to_id(" ^ (expr_emit e1) ^ ", " ^ (expr_emit e2) ^ ")){\n" ^
             (convert_stmtlist sl)  ^ "}\n")
          )
 
+    *)
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)
-let convert_ast (prog : program) : string =
+let convert_ast (_: program) : string = ""
+  (*
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     convert_mem (prog) ^
     match prog with
@@ -200,18 +213,18 @@ let convert_ast (prog : program) : string =
             (convert_target prog) ^
             "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^
             (convert_codelist cl) ^ "bsg_wait_while(1);\n" ^ "\n}"
-
+*)
 let generate_makefile (prog : program) : string =
-    match prog with
-    | ([], _, _, _) -> ""
-    | (GlobalMemDecl _ :: _, _, _, _) -> ""
-    | (TileDecl tile :: _, _, _, _) ->
+    match prog.target_section with
+    | [] -> ""
+    | GlobalMemDecl _ :: _ -> ""
+    | TileDecl tile :: _ ->
         (
           if List.length tile.tile_dims >= 2
             then
               (
-                "bsg_tiles_X = " ^ (convert_expr (List.nth tile.tile_dims 0)) ^
-                "\nbsg_tiles_Y = " ^ (convert_expr (List.nth tile.tile_dims 1))
+                "bsg_tiles_X = " ^ (expr_emit (List.nth tile.tile_dims 0)) ^
+                "\nbsg_tiles_Y = " ^ (expr_emit (List.nth tile.tile_dims 1))
               )
             else ""
         )

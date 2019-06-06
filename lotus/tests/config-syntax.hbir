@@ -1,0 +1,15 @@
+target {
+}
+
+config {
+  in t {
+    group g1 at (0 : xmax/2, 0 : ymax);
+    group g2 at (xmax/2 : xmax, 0 : ymax);
+  }
+}
+
+data {
+}
+
+code {
+}

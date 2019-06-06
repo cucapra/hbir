@@ -1,5 +1,6 @@
 open Ast
 
+(*
 let rec pretty (e : expr) : string =
     match e with
       String str -> str
@@ -91,8 +92,9 @@ let rec pretty_codelist (cl : code list) : string =
     | c::ct -> (match c with
         | (g, e) -> (match g with (s1, (e1, e2)) -> "group " ^ s1 ^ " with dim " ^ (pretty e1) ^ ", " ^ (pretty e2)
                                                     ^ " with code " ^ (pretty_stmtlist e))) ^ (pretty_codelist ct)
-
-let pretty_program (p : program) : string =
+*)
+let pretty_program (_ : program) : string = ""
+  (*
     match p with
     | ([], _, _, _) -> "No target specified"
     | (GlobalMemDecl m1 :: _, _, _, _) ->
@@ -114,5 +116,5 @@ let pretty_program (p : program) : string =
         (match code with
         | (_, codeList) -> "code with " ^ (pretty_codelist codeList)
         )
-
+*)
 

@@ -1,3 +1,4 @@
+(*
 open Ast
 
 (* everything having to do with memory layouts and  *)
@@ -41,4 +42,4 @@ let find_data_layout_by_symbol (search_name : string) : old_data_layout =
 (* generate the symbol table before compilation (merging of the sections) begins *)
 let generate_layout_symbol_table (data : data_decl) =
     apply_to_option (Some (data.data_name, Global, data.data_layout)) () (fun (d : old_data_layout) -> (append_data_layout d))
-
+*)

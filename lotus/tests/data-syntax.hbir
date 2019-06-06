@@ -5,15 +5,15 @@ config{
 }
 
 data{
-  dim = 1;
+  int dim = 1;
   
   in A : int[3][3] {
-    location : config.t,
+    location : t.gr,
     layout : block
   } 
 
   out B : int[3][3] {
-    location : config.t,
+    location : t.gr,
     layout : block
   }
 }

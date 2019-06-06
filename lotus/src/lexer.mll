@@ -34,15 +34,8 @@ rule token =
     | "target"      { TARGET }
     | "memory"      { MEMORY }
     | "size"        { SIZE }
-    | size as size  { SIZEDECL (size) }
     | "width"       { WIDTH }
-    | width as w    { WDECL (w) }
     | "tile"        { TILE }
-    | "?"           { UNKNOWN }
-    | "global"      { GLOBAL }
-    | "local"       { LOCAL }
-    | "host"        { HOST }
-    | "device"      { DEVICE }
 
     (* data distribution keywords *)
     | "chunked"     { CHUNK }
@@ -51,16 +44,12 @@ rule token =
     | "in"          { IN }
     | "location"    { LOCATION }
     | "config"      { CONFIG }
+    | "arrange"     { ARRANGE }
+    | "as"          { AS }
     | "at"          { AT }
     | "group"       { GROUP }
-    | "temporal"    { TEMPORAL }
     | "block"       { BLOCK }
     (* TODO: Test to make sure having these here doesn't mean ids can't use these *)
-    | "x"           { X }
-    | "y"           { Y }
-    | "x_max"       { X_MAX }
-    | "y_max"       { Y_MAX }
-
     | "data"        { DATA }
 
     | "code"        { CODE }
@@ -81,9 +70,7 @@ rule token =
     | "float"       { FLOAT }
     | "true"        { TRUE }
     | "false"       { FALSE }
-    (* TODO: Maybe implement this in a different way in the future (ie: don't handle this on the lexer/parser level) *)
     | "printf"       { PRINTF }
-    (* TODO: Hacky way to implement bsg imperatives *)
     | "bsg_finish" {BSG_FINISH}
 
     (* Symbols *)
@@ -93,6 +80,7 @@ rule token =
     | "]"           { RIGHT_BRACKET }
     | "{"           { LEFT_BRACE }
     | "}"           { RIGHT_BRACE }
+    | "#"           { POUND_SIGN }
 
     | "+"           { PLUS }
     | "-"           { MINUS }

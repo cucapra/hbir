@@ -1,9 +1,3 @@
-(* Helper functions *)
-let apply_to_option (b_option : 'b option) (default : 'a) (func : 'b -> 'a) : 'a =
-    match b_option with
-        | None -> default
-        | Some extracted_b -> func extracted_b
-
 (* types *)
 type hbir_type =
     | MemoryType of int
@@ -14,16 +8,10 @@ type hbir_type =
     | TemporalType of int
     | ConstType
 
-and generic_type =
+and typ =
     | BoolTyp
     | IntTyp
     | FloatTyp
-
-and sgmt =
-    | Target
-    | Config
-    | Data
-    | Code
 
 
 (* CODE ABOVE BEING GRADUALLY RESTRUCTURED BELOW,
@@ -32,7 +20,7 @@ and sgmt =
 (* utility types *)
 and location = string list
 
-(* program *)
+(* ------ program ------ *)
 and program = {
   target_section : target_section; 
   config_section : config_section;
@@ -40,7 +28,7 @@ and program = {
   code_section : code_section;
 }
 
-(* target section *)
+(* ------ target section ------ *)
 and target_section = target_decl list
 and target_decl = 
   GlobalMemDecl of mem_decl | 
@@ -60,7 +48,7 @@ and tile_decl = {
   mem_decls: mem_decl list
 }
 
-(* config section *)
+(* ------ config section ------ *)
 and config_section = top_level_group_decl list
 
 and top_level_group_decl = {
@@ -78,16 +66,16 @@ and range =
       SingletonRange of expr
     | SliceRange of expr * expr
 
-(* data section *)
+(* ------ data section ------ *)
 and data_section = {
-  data_constant_decls : (string * expr) list;
-  data_decls : data_decl list
+  ds_constant_decls : (typ * string * expr) list;
+  ds_data_decls : data_decl list
 }
 
 and data_decl = {
   data_dir : inout_dir;
   data_name : string;
-  data_type : generic_type;
+  data_type : typ;
   data_dims : expr list;
   data_loc : location;
   data_layout : data_layout; 
@@ -102,35 +90,29 @@ and data_layout =
     (* if custom than allow code to be written there {} *)
     | Custom
 
-(* code section *)
+(* ------ code section ------ *)
 and code_section = {
-  code_constant_decls : stmt list;
-  group_routine_decl : group_routine_decl list;
+  cs_constant_decls : (typ * string * expr) list;
+  cs_code_block_decls : code_block_decl list;
 }
-and group_routine_decl = {
-  host_group_name : string; 
-  code : stmt list
+
+and code_block_decl = {
+  cb_group_name : location;
+  cb_code : stmt list
 }
 
 and expr =
-    | String of string
-    | Int of int
-    | Float of float
-    | Bool of bool
-    | Deref of string * expr
-    | BinApp of binop * expr * expr
-
-    (* TODO: These last cases should be removed/generalized *)
-    | Xmax
-    | Ymax
-    | X
-    | Y
-    | Id of string
+    | VarExpr of string
+    | IntExpr of int
+    | FloatExpr of float
+    | BoolExpr of bool
+    | DerefExpr of expr * (expr list)
+    | BinAppExpr of binop * expr * expr
 
 and binop =
     | Plus
     | Minus
-    | Times
+    | Mul
     | Div
     | Eq
     | Neq
@@ -141,28 +123,20 @@ and binop =
     | And
     | Or
 
-(* inferred iterator from data section into the code section *)
-(* iterator name (i) ~ bounds ~ layout name ~ coord x ~ coord y *)
-and inferred_iterator = string * expr * string * expr * expr
-
-(* spmd *)
 and stmt =
-    | Decl of string * string
-    | Assign of string * expr
-    | MemAssign of (string * expr * expr option) * expr
-    | DeclAssign of string * string * expr
-    | If of expr * stmt list
-    | IfElse of expr * stmt list * stmt list
-    | While of expr * stmt list
-    | For of (stmt * expr * (string * expr)) * (stmt list)
-    | For_Infer of inferred_iterator * stmt list
-    | Break of string
-    | Print of string
-    | BsgFinish
+    | VarInitStmt of typ * string * expr
+    | VarAssignStmt of string * expr
+    | ArrayAssignStmt of string * expr list * expr
+    | IfStmt of (expr * stmt list) list
+    | WhileStmt of expr * stmt list
+    | ForStmt of string * range * (stmt list)
+    | PrintStmt of string
+    | BsgFinishStmt
 
 
 (* FOR BACKWARDS COMPATIBILITY *)
 (* NOTE: remove this when no longer necessary backwards compatibility*)
+(* 
 and old_mem_decl = string * expr * (size_decl * width_decl)
 and old_tile =  string * (expr * expr)
 and old_tile_decl = string * (expr * expr) * (mem_decl option)
@@ -179,3 +153,4 @@ and mem_type =
 and mem_location =
     | Host
     | Device
+    *)

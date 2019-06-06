@@ -1,7 +1,0 @@
-#include "bsg_manycore.h"
-#include "bsg_set_tile_x_y.h"
-#define dim 1
-
-int A[3][3] __attribute__ ((section (".dram")));
-
-

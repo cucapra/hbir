@@ -1,4 +1,6 @@
+
 open Ast
+(*
 open Manycore
 open Layouts
 
@@ -27,13 +29,13 @@ let f1_device_symbol(symbol : string) : string =
 let string_of_bounds(b : bounds) : string =
         match b with
         | (x1, y1, x2, y2) ->
-        (convert_expr x1) ^ ", " ^ (convert_expr y1) ^ ", " ^ 
-        (convert_expr x2) ^ ", " ^ (convert_expr y2)
+        (expr_emit x1) ^ ", " ^ (expr_emit y1) ^ ", " ^ 
+        (expr_emit x2) ^ ", " ^ (expr_emit y2)
 
 (* helper to convert tile coords to a string *)
 let string_of_tile(t: tile_decl) : string = 
   if List.length t.tile_dims >= 2
-    then (convert_expr (List.nth t.tile_dims 0)) ^ ", " ^ (convert_expr (List.nth t.tile_dims 1))
+    then (expr_emit (List.nth t.tile_dims 0)) ^ ", " ^ (expr_emit (List.nth t.tile_dims 1))
     else ""
 
 (* define some boilerplate strings *)
@@ -68,7 +70,7 @@ let f1_host_data_gen (gen_wrapper : bool) (args : memcpy) : string =
         match args with 
         | (symbol, dim) ->
                 let host_symbol = f1_host_symbol(symbol) in 
-                "\t" ^ "int *" ^ host_symbol ^ " = (int*)malloc(" ^ dim ^ " * sizeof(int));\n" ^
+                "\t" ^ "int *" ^ host_symbol ^ " = (int* )malloc(" ^ dim ^ " * sizeof(int));\n" ^
                 "\t" ^ "for(int i = 0; i < " ^ dim ^ "; i++) {\n" ^
                 "\t\t" ^ host_symbol ^ "[i] = i;\n" ^
                 "\t" ^ "}\n"
@@ -82,8 +84,8 @@ let func_within_bounds (func : tile_decl -> string) (b : bounds) : string =
         match b with
         | (x1, y1, x2, y2) ->
                 let t : tile_decl = {tile_name="what's this for?"; tile_dims=[]; mem_decls=[]} in 
-                "\t"     ^ "for (int y = " ^ ( convert_expr y1 ) ^ "; y < " ^ ( convert_expr y2 ) ^ "; y++) {\n" ^
-                "\t\t"   ^ "for (int x = " ^ ( convert_expr x1 ) ^ "; x < " ^ ( convert_expr x2 ) ^ "; x++) {\n" ^
+                "\t"     ^ "for (int y = " ^ ( expr_emit y1 ) ^ "; y < " ^ ( expr_emit y2 ) ^ "; y++) {\n" ^
+                "\t\t"   ^ "for (int x = " ^ ( expr_emit x1 ) ^ "; x < " ^ ( expr_emit x2 ) ^ "; x++) {\n" ^
                 "\t\t"   ^ func(t) ^
                 "\t\t"   ^ "}\n" ^
                 "\t"     ^ "}\n"
@@ -99,7 +101,7 @@ let f1_memcpy (dir : string) (b : bounds) (args : memcpy) : string =
                 let device_symbol = f1_device_symbol(symbol) in
                 let single_memcpy (t : tile_decl) : string = 
                         "\t" ^ "hammaSymbolMemcpy(fd, " ^ string_of_tile(t) ^ " ,  manycore_program, \"" ^ 
-                        device_symbol ^ "\", (void*)" ^ host_symbol ^ ", " ^ num_bytes ^ ", " ^ dir ^ ");\n"
+                        device_symbol ^ "\", (void* )" ^ host_symbol ^ ", " ^ num_bytes ^ ", " ^ dir ^ ");\n"
                 in
                 func_within_bounds single_memcpy b
 
@@ -115,7 +117,7 @@ let rec f1_convert_dmaps (dmaps : data_decl list) (func : memcpy -> string) : st
               | [dim_x; dim_y] -> Times (dim_x,dim_y)
               | _ -> failwith "only 1 or 2 dimensional data supported."
       in
-      let single_memcpy = d.data_name, convert_expr dim in
+      let single_memcpy = d.data_name, expr_emit dim in
       func(single_memcpy) ^
       (* recursively call the function on the next element to process the whole array *)
       (f1_convert_dmaps dt func))
@@ -162,7 +164,7 @@ let f1_result_buffers (gen_wrapper: bool) (args : memcpy) : string =
         match args with 
         | (symbol, dim) ->
                 let host_symbol = f1_host_symbol(symbol) in 
-                "\t" ^ "int *" ^ host_symbol ^ " = (int*)malloc(" ^ dim ^ " * sizeof(int));\n"
+                "\t" ^ "int *" ^ host_symbol ^ " = (int* )malloc(" ^ dim ^ " * sizeof(int));\n"
 
 let f1_cleanup_host : string = "\t// cleanup host\n\treturn 0;\n}\n"
 
@@ -187,8 +189,10 @@ let f1_split_dmaps (dmaps : data_decl list) =
 (* figure out how many tiles should be allocated for a particular kernel *)
 let f1_get_num_tiles ( _: config_decl ) : bounds = (Int 0, Int 0, Int 0, Int 0)
 
+*)
 (* emits the host code *)
-let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
+let generate_f1_host (_: program) (_: bool) : string = ""
+(*
   (f1_includes gen_wrapper) ^
   match prog with
   | (_, config, data, _) -> (
@@ -200,7 +204,7 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
       let memcpy_to = (f1_memcpy "hostToDevice" tile_bounds) in
       let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
         (convert_data_stmtlist data.constant_decls) ^
-        (*"\t" ^ "int dim = " ^ (convert_expr e) ^ ";\n" ^*)
+        (*"\t" ^ "int dim = " ^ (expr_emit e) ^ ";\n" ^*)
         (f1_convert_dmaps memcpy_to_dmaps (f1_host_data_gen gen_wrapper)) ^
         f1_load_kernel(tile_bounds) ^ 
 
@@ -211,9 +215,10 @@ let generate_f1_host (prog : program) (gen_wrapper : bool) : string =
         (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
         f1_cleanup_host
   )
-
+*)
 (* generates header file to include in your program to run the hbir kernel *)
-let generate_f1_wrapper_header (prog : program) : string =
+let generate_f1_wrapper_header (_: program) : string = ""
+(*
     match prog with
     | (_, _, d, _) -> 
       let kernel_name = "hbir_kernel" in
@@ -222,10 +227,11 @@ let generate_f1_wrapper_header (prog : program) : string =
       "#define " ^ unique_def_name ^ "\n" ^
       (f1_create_kernel_header kernel_name d.data_decls) ^ ";\n" ^
       "#endif\n"
-
+*)
 
 (* can read as foreach code section in program, add an int main() and foreach code listing? *)
-let generate_f1_device (prog : program) : string =
+let generate_f1_device (_ : program) : string = ""
+  (*
     "#include \"bsg_manycore.h\"\n#include \"bsg_set_tile_x_y.h\"\n" ^
     convert_mem (prog) ^
     match prog with
@@ -234,25 +240,27 @@ let generate_f1_device (prog : program) : string =
         | (None, cl) -> (convert_codelist cl) ^ "\n}"
         | (Some sl, cl) ->
             (convert_stmtlist sl) ^ (convert_codelist cl) ^ "\n}"
-
-let generate_f1_makefile (prog : program) : string =
-    match prog with
-    | ([], _, _, _) -> ""
-    | (GlobalMemDecl _ :: _, _, _, _) -> ""
-    | (TileDecl tile :: _, _, _, _) ->
+*)
+let generate_f1_makefile (_: program) : string = ""
+  (*
+    match prog.target_section with
+    | [] -> ""
+    | GlobalMemDecl _ :: _ -> ""
+    | TileDecl tile :: _ ->
         (
           if List.length tile.tile_dims >= 2
             then
-              "bsg_tiles_X = " ^ (convert_expr (List.nth tile.tile_dims 0)) ^
-              "\nbsg_tiles_Y = " ^ (convert_expr (List.nth tile.tile_dims 1))
+              "bsg_tiles_X = " ^ (expr_emit (List.nth tile.tile_dims 0)) ^
+              "\nbsg_tiles_Y = " ^ (expr_emit (List.nth tile.tile_dims 1))
             else ""
         ) ^
         makefile ^ "\n"
-
+        *)
 (* any preprocessing before actually doing the compilation, like constructing the symbol table or static analysis? *)
-let preprocessing_phase (prog : program) =
-    match prog with
-    | (_, _, d, _) -> 
-        if List.length d.data_decls > 0
-          then (generate_layout_symbol_table (List.nth d.data_decls 0))
+let preprocessing_phase (_: program) = ()
+(*
+    let ds = prog.data_section.ds_data_decls in
+        if List.length ds > 0
+          then (generate_layout_symbol_table (List.nth ds 0))
           else ()
+*)
