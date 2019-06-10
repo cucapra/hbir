@@ -1,33 +1,7 @@
 target{
-  tile t[4][4] {
-    memory g[10][10] {
-      size : 8,
-      width : 8
-    }
-  }
 }
 config{
-  arrange t as {
-    group top_half at (0 : xmax/2, 0 : ymax);
-    group bot_half at (xmax/2 : xmax, 0 : ymax);
-  }
 }
 data{
-  int n = 160
-
-  in A : int[n] {
-    location : config.t.g,
-    layout : block
-  }
-
-  in B : int[n] {
-    location : config.t.g,
-    layout : block
-  }
-
-  out C : int[n] {
-    location : config.t,
-    layout : block
-  }
 }
 code{}

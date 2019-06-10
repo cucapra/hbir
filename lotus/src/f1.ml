@@ -1,5 +1,5 @@
-
 open Ast
+
 (*
 open Manycore
 open Layouts
@@ -190,32 +190,7 @@ let f1_split_dmaps (dmaps : data_decl list) =
 let f1_get_num_tiles ( _: config_decl ) : bounds = (Int 0, Int 0, Int 0, Int 0)
 
 *)
-(* emits the host code *)
-let generate_f1_host (_: program) (_: bool) : string = ""
-(*
-  (f1_includes gen_wrapper) ^
-  match prog with
-  | (_, config, data, _) -> (
-    let tile_bounds = f1_get_num_tiles(config) in
-      (f1_main gen_wrapper data.data_decls) ^   
 
-      (* get dmaps intended to be send in different directions *)
-      let (memcpy_to_dmaps, memcpy_from_dmaps) = f1_split_dmaps(data.data_decls) in
-      let memcpy_to = (f1_memcpy "hostToDevice" tile_bounds) in
-      let memcpy_from = (f1_memcpy "deviceToHost" tile_bounds) in
-        (convert_data_stmtlist data.constant_decls) ^
-        (*"\t" ^ "int dim = " ^ (expr_emit e) ^ ";\n" ^*)
-        (f1_convert_dmaps memcpy_to_dmaps (f1_host_data_gen gen_wrapper)) ^
-        f1_load_kernel(tile_bounds) ^ 
-
-        (* for each data field should create a memcpy cmd*)
-        (f1_convert_dmaps memcpy_to_dmaps memcpy_to) ^
-        f1_run_and_wait(tile_bounds) ^
-        (f1_convert_dmaps memcpy_from_dmaps (f1_result_buffers gen_wrapper)) ^ 
-        (f1_convert_dmaps memcpy_from_dmaps memcpy_from) ^
-        f1_cleanup_host
-  )
-*)
 (* generates header file to include in your program to run the hbir kernel *)
 let generate_f1_wrapper_header (_: program) : string = ""
 (*
@@ -264,3 +239,256 @@ let preprocessing_phase (_: program) = ()
           then (generate_layout_symbol_table (List.nth ds 0))
           else ()
 *)
+
+(* Possible Errors *)
+let no_tile_group_error : string = 
+  "Target Section Error: " ^ 
+  "must declare at least one tile group."
+let unsupported_many_tile_groups_error : string =
+  "Target Section Error: " ^
+  "only one tile group is supported atm."
+let only_two_dims_error : string =
+  "Target Section Error: " ^ 
+  "only 2D tile groups are supported atm."
+let unsupported_layout_error : string =
+  "Data Section Error: only Blocked layout supported."
+
+
+(* Output String Templates *)
+let (#%) = Printf.sprintf
+
+let host_header_template : string = 
+"#include \"f1_helper.h\"
+#include <stdlib.h>\n"
+
+let target_macro_decl_template 
+  (var_name : string) (expr_emitted : string) : string = 
+    "#define %s %s\n" #% var_name expr_emitted
+
+let main_decl_template : string =
+"int main(int argc, char *argv[]) {
+  assert(argc == 2);
+  char *manycore_program = argv[1];
+  // Initialize and get userspace pointer to FPGA
+  uint8_t fd;
+  hammaInit(&fd);"
+
+let data_constant_decl_template (typ_name : string)
+                                (var_name : string) 
+                                (expr_emitted : string) : string = 
+  "%s %s = %s;\n" #% typ_name var_name expr_emitted
+
+let data_decl_template (typ_name : string)
+                       (var_name : string)
+                       (size_expr_emitted : string) : string =
+  "%s *%s = (%s*)malloc(%s * sizeof(%s));\n" #%
+    typ_name var_name typ_name size_expr_emitted typ_name
+
+let blocked_layout_init_template : string = 
+"// 2D Blocked Layout Init
+int num_cores = (X2 - X1) * (Y2 - Y1);
+int dim_per_core = dim / num_cores;\n"
+
+let blocked_layout_body_template (var_name: string)
+                                 (typ_name: string) 
+                                 (direction : string) : string =
+"for (int y = Y1; y < Y2; y++) {
+  for (int x = X1; x < X2; x++) {
+    // This offset sends blocks vectors across cores
+    // in column-major order
+    int offset = (y-Y1) * (X2-X1) * dim_per_core +
+                 (x-X1) * dim_per_core;
+
+    hammaSymbolMemcpy(fd, x, y, manycore_program, \"%s\",
+                      (void*)(%s + offset),
+                      dim_per_core * sizeof(%s),
+                      %s);
+  }
+}\n" #% var_name var_name typ_name direction
+
+let execute_code_blocks_template : string =
+"// Run all of the tiles
+hammaRunMultiple(fd, X1, Y1, X2, Y2);"
+
+let return_template : string = 
+"\treturn 0; 
+}"
+
+let indent_level (n : int) (s : string) : string =
+  let rec indentation_builder (n : int) : string = 
+    if n == 0 then ""
+    else "\t" ^ indentation_builder (n-1) in
+  let indentation : string = indentation_builder n in
+  let lines : string list = String.split_on_char '\n' s in
+  let indented_lines = List.map ((^) (indentation)) lines in
+  String.concat "\n" indented_lines
+
+(* Ast Emit *)
+let type_emit (g : typ) : string =
+    match g with
+    | BoolTyp -> "boolean"
+    | IntTyp -> "int"
+    | FloatTyp -> "float"
+
+let rec expr_emit (e : expr) : string =
+  let emit_from_binop (binop : binop) : string =
+    match binop with
+        | Plus -> "+"
+        | Minus -> "-"
+        | Mul -> "*"
+        | Div -> "/"
+        | Eq -> "=="
+        | Neq -> "!="
+        | Lt -> "<"
+        | Gt -> ">"
+        | Lteq -> "<="
+        | Gteq -> ">="
+        | And -> "&&"
+        | Or -> "||" in
+
+    match e with
+    | VarExpr str -> str
+    | IntExpr v -> string_of_int v
+    | FloatExpr v -> string_of_float v
+    | BoolExpr b -> if b then "true" else "false"
+    | DerefExpr (e, es) -> 
+        let dims = 
+          List.fold_left (fun s e -> "%s[%s]" #% s (expr_emit e)) "" es in
+          (expr_emit e) ^ dims
+    | BinAppExpr (binop, e1, e2) -> 
+        "%s %s %s" #% 
+          (expr_emit e1) (emit_from_binop binop) (expr_emit e2)
+
+let inout_dir_emit (dir : inout_dir) : string = 
+  match dir with
+  | In -> "deviceToHost"
+  | Out -> "hostToDevice"
+
+(* Host Code Emit *)
+
+(* 1) Headers *)
+let header_emitted : string = host_header_template
+
+(* 2) Constant Macros *)
+let tile_size_constants_emit (ts : target_section) : string = 
+  match ts with
+  | [] -> ""
+  | targ::targs ->
+      if List.length targs >= 1
+        then failwith unsupported_many_tile_groups_error
+        else
+          match targ with
+          | GlobalMemDecl _ -> ""
+          | TileDecl tile ->
+            if List.length tile.tile_dims != 2
+              then failwith only_two_dims_error
+              else
+                let tile_size_consts : (string * expr) list= 
+                  [("X1", IntExpr 0);
+                   ("X2", List.nth tile.tile_dims 0);
+                   ("Y1", IntExpr 0);
+                   ("Y2", List.nth tile.tile_dims 1)] in
+                  List.fold_left
+                      (fun s const_decl ->
+                        let (x, e) = const_decl in 
+                        let e_emitted = (expr_emit e) in
+                          s ^ (target_macro_decl_template x e_emitted)
+                      ) "" tile_size_consts
+
+
+(* 3) Main declaration and FPGA init: *)
+let main_decl_emitted : string = main_decl_template 
+
+(* 4) Array Decls *)
+let data_decls_emit (ds : data_section) : string =
+  let constant_decls_emit : string = 
+    let constant_decl_emit (const_decl : (typ * string * expr)) =
+      match const_decl with
+      (typ, x, e) -> 
+        data_constant_decl_template (type_emit typ) x (expr_emit e) in
+    String.concat "" (List.map constant_decl_emit ds.ds_constant_decls) in
+
+  let data_decls_emit : string = 
+    let data_decl_emit (d : data_decl) : string =
+      let type_emitted : string = type_emit d.data_type in
+      let dims_emitted : string list = List.map expr_emit d.data_dims in
+      let size_expr_emitted : string = 
+        String.concat " * " dims_emitted in
+      data_decl_template type_emitted d.data_name size_expr_emitted in
+    String.concat "\n" (List.map data_decl_emit ds.ds_data_decls) in
+
+  constant_decls_emit ^ 
+  data_decls_emit
+
+(* 5) Input Array Layouts *)
+let input_data_layouts_emit (ds : data_section) : string =
+  let layout_init_emitted : string =
+    if List.exists (fun d -> d.data_layout == Blocked) ds.ds_data_decls 
+      then blocked_layout_init_template
+    else if List.length ds.ds_data_decls == 0 
+      then "" 
+    else failwith unsupported_layout_error in
+
+  let input_layouts_emitted : string =
+    let layout_emit (d : data_decl) : string =
+      match d.data_layout with
+      | Blocked -> 
+          blocked_layout_body_template d.data_name 
+            (type_emit d.data_type) (inout_dir_emit d.data_dir)
+      | _ -> failwith unsupported_layout_error in
+    let input_data_decls =
+      List.filter (fun d -> d.data_dir == In) ds.ds_data_decls in
+    String.concat "\n" (List.map layout_emit input_data_decls) in
+
+  layout_init_emitted ^
+  input_layouts_emitted
+
+
+(* 6) Start execution of code blocks and wait *)
+let execute_blocks_emitted = execute_code_blocks_template
+
+(* 7) Output Array Decl and Layout *)
+let output_data_layouts_emit (ds : data_section) : string =
+  let layout_emit (d : data_decl) : string =
+    match d.data_layout with
+    | Blocked -> 
+        blocked_layout_body_template d.data_name 
+          (type_emit d.data_type) (inout_dir_emit d.data_dir)
+    | _ -> failwith unsupported_layout_error in
+  let output_data_decls =
+    List.filter (fun d -> d.data_dir == In) ds.ds_data_decls in
+  String.concat "\n" (List.map layout_emit output_data_decls)
+
+(* 8) Do stuff with output *)
+let return_emitted = return_template
+
+(* emits the host code *)
+(* TODO: organize above 'let's, either 
+ * into separate files or inside of this function *)
+let generate_f1_host (prog: program) (_): string = 
+  (* 1) Headers *)
+  indent_level 0 header_emitted ^ "\n" ^
+
+  (* 2) Constant Macros 
+   * Currently, target section macros. 
+   * Do these need to be macros? Should other variables also be macros?
+   * Or should all macros be variables? *)
+  indent_level 0 (tile_size_constants_emit prog.target_section) ^ "\n" ^
+
+  (* 3) Main declaration and FPGA init: *)
+  indent_level 0 (main_decl_emitted) ^ "\n" ^
+
+  (* 4) Array Decls *)
+  indent_level 1 (data_decls_emit prog.data_section) ^ "\n" ^
+
+  (* 5) Input Array Layouts *)
+  indent_level 1 (input_data_layouts_emit prog.data_section) ^ "\n" ^
+
+  (* 6) Start execution of code blocks and wait *)
+  indent_level 1 execute_blocks_emitted ^ "\n" ^
+
+  (* 7) Output Array Decl and Layout *)
+  indent_level 1 (output_data_layouts_emit prog.data_section) ^ "\n" ^
+
+  (* 8) Do stuff with output? Or Nothing? *)
+  indent_level 1 return_emitted
