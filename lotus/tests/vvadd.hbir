@@ -14,6 +14,8 @@ config{
 }
 
 data{
+  int n = 160;
+
   in A : int[n] {
     location : t,
     layout : block

@@ -28,12 +28,12 @@ let rec expr_emit (e : Ast.expr) : string =
          (expr_emit e1) (binop_emit binop) (expr_emit e2)
   end
 
-and deref_emit (array_expr : Ast.expr) (dims : Ast.expr list) : string =
-  let dims_emitted : string = 
-    List.map expr_emit dims |>
+and deref_emit (array_expr : Ast.expr) (dims : Ast.expr list) : string = expr_emit array_expr ^ dims_emit dims
+
+and dims_emit (ds : Ast.expr list) : string = 
+    List.map expr_emit ds |>
     List.map ((#%) "[%s]") |>
-    String.concat "" in 
-  expr_emit array_expr ^ dims_emitted
+    String.concat ""
 
 let type_emit (g : Ast.typ) : string =
     match g with
@@ -50,8 +50,9 @@ let inout_dir_emit (dir : Ast.inout_dir) : string =
 let array_access_brackets_emit (dims : string list) : string = 
   List.map ((#%) "[%s]") dims |> String.concat ""
 
-let array_decl_emit (tau : string) (x : string) (dims : string list) =
-  "%s %s%s" #% tau x (array_access_brackets_emit dims)
+let array_decl_emit (tau : Ast.typ) (x : string) (dims : Ast.expr list) =
+  "%s %s%s;" #% 
+    (type_emit tau) x (dims_emit dims)
 
 
 let header_emit (header_file : string) : string = 
@@ -63,7 +64,7 @@ let expr_macro_emit
 
 
 let var_init_emit (typ : Ast.typ) (x : string) (e : Ast.expr) : string = 
-  "%s %s = %s;\n" #% (type_emit typ) x (expr_emit e)
+  "%s %s = %s;" #% (type_emit typ) x (expr_emit e)
 
 let dynamic_alloc_array_emit (typ : Ast.typ)
                        (x : string)
