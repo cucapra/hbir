@@ -35,7 +35,7 @@ let write_f1 (prog : program) : unit =
     let out_dir : string = "f1-gen" in
     let _ = Sys.command ("mkdir -p " ^ out_dir) in
     let ch1 = open_out (*f ^*) (out_dir ^ "/device.c") in
-    output_string ch1 ("");
+    output_string ch1 (F1_device.emit prog);
     close_out ch1;
     let ch2 = open_out (out_dir ^ "/Makefile") in
     output_string ch2 ("");
