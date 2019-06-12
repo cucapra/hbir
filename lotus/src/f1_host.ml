@@ -8,16 +8,6 @@ let indent (n : int) (s : string) : string =
   String.concat "\n" indented_lines
 
 let emit (prog: Ast.program) : string = 
-  (* Errors *)
-  let unsupported_many_tile_groups_error : string =
-    "Target Section Error: " ^
-    "only one tile group is supported atm." in
-  let only_two_dims_error : string =
-    "Target Section Error: " ^ 
-    "only 2D tile groups are supported atm." in
-  let unsupported_layout_error : string =
-    "Data Section Error: only Blocked layout supported." in
-
   (* 1. Headers *)
   let host_header_emit : string = 
     let header_files = ["\"f1_helper\""; "<stdlib.h>"] in
@@ -29,13 +19,13 @@ let emit (prog: Ast.program) : string =
     | [] -> ""
     | targ::targs ->
         if List.length targs >= 1
-          then failwith unsupported_many_tile_groups_error
+          then failwith Error.unsupported_many_tile_groups_error
           else
             match targ with
             | GlobalMemDecl _ -> ""
             | TileDecl tile ->
               if List.length tile.tile_dims != 2
-                then failwith only_two_dims_error
+                then failwith Error.only_two_dims_error
                 else
                   let tile_size_consts : (string * Ast.expr) list= 
                     [("X1", IntExpr 0);
@@ -77,7 +67,7 @@ let emit (prog: Ast.program) : string =
         then Core_emit.host_blocked_layout_init_emit
       else if List.length ds.ds_data_decls == 0 
         then "" 
-      else failwith unsupported_layout_error in
+      else failwith Error.unsupported_layout_error in
 
     let input_layouts_emitted : string =
       let layout_emit (d : Ast.data_decl) : string =
@@ -85,7 +75,7 @@ let emit (prog: Ast.program) : string =
         | Blocked -> 
             Core_emit.host_blocked_layout_send_emit 
               d.data_name d.data_type d.data_dir
-        | _ -> failwith unsupported_layout_error in
+        | _ -> failwith Error.unsupported_layout_error in
       let input_data_decls =
         List.filter 
           (fun d -> d.Ast.data_dir == Ast.In) ds.ds_data_decls in
@@ -108,7 +98,7 @@ let emit (prog: Ast.program) : string =
             d.Ast.data_name 
             d.data_type 
             d.data_dir
-      | _ -> failwith unsupported_layout_error in
+      | _ -> failwith Error.unsupported_layout_error in
     let output_data_decls =
       List.filter (fun d -> d.Ast.data_dir == Ast.Out) ds.ds_data_decls in
     String.concat "\n" (List.map layout_emit output_data_decls) in
