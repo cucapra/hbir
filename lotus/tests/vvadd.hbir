@@ -33,13 +33,7 @@ data{
 }
 
 code{
-  t.top_half {
-    for i in [0:xmax] {
-      C[i] = A[i] + B[i];
-    }
-  }
-
-  t.bot_half {
+  t.g1 {
     for i in [0:xmax] {
       C[i] = A[i] + B[i];
     }

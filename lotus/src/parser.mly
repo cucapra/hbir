@@ -220,7 +220,7 @@ let constant_decl :=
 
 let code_block_decl :=
     | cb_group_name = nameLookup; 
-      LEFT_BRACE; cb_code = stmt*; RIGHT_BRACE;
+      LEFT_BRACE; cb_code = stmt; RIGHT_BRACE;
         { {cb_group_name; cb_code} }
 
 let parens(x) := 
@@ -265,18 +265,19 @@ let typ :=
 
     
 let guarded_body := 
-    | ~ = parens(expr); body = braces(stmt* ); <>
+    | ~ = parens(expr); body = braces(stmt ); <>
 
-let stmt := 
-    | ~ = stmt_with_semi; <>
+let stmt :=
+    | s1 = stmt; s2 = stmt; < SeqStmt >
     | ~ = stmt_without_semi; <>
-
+    | ~ = stmt_with_semi; SEMICOLON; <>
+    
 let stmt_without_semi := 
     | FOR; i = ID; IN; range = brackets(range);
-      body = braces(stmt* );
+      body = braces(stmt );
       < ForStmt >
-let stmt_with_semi := ~ = stmt_with_semi_body; SEMICOLON; <>
-let stmt_with_semi_body :=
+
+let stmt_with_semi := 
     | t = typ; x = ID; EQ; e = expr; 
       < VarInitStmt >
     | a = ID; coord = brackets(expr)*; EQ; e = expr;

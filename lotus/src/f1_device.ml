@@ -55,10 +55,8 @@ let emit (prog : Ast.program) : string =
 
 
 
-  (*
-  4. Code block function
-    Note: we only support up to one code block at the moment, since we don't allow for multiple groups
-  *)
+  (* 4. Code block function
+    Note: we only support up to one code block at the moment, since we don't allow for multiple groups *)
 
   (*
   5. Main declaration

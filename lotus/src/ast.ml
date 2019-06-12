@@ -98,7 +98,7 @@ and code_section = {
 
 and code_block_decl = {
   cb_group_name : location;
-  cb_code : stmt list
+  cb_code : stmt
 }
 
 and expr =
@@ -124,12 +124,13 @@ and binop =
     | Or
 
 and stmt =
+    | SeqStmt of stmt * stmt
     | VarInitStmt of typ * string * expr
     | VarAssignStmt of string * expr
     | ArrayAssignStmt of string * expr list * expr
-    | IfStmt of (expr * stmt list) list
-    | WhileStmt of expr * stmt list
-    | ForStmt of string * range * (stmt list)
+    | IfStmt of (expr * stmt) list
+    | WhileStmt of expr * stmt
+    | ForStmt of string * range * stmt
     | PrintStmt of string
     | BsgFinishStmt
 
