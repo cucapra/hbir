@@ -34,7 +34,7 @@ data{
 
 code{
   t.g1 {
-    for i in [0:xmax] {
+    for i in [0:10] {
       C[i] = A[i] + B[i];
     }
   }

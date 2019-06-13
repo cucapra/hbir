@@ -1,9 +1,9 @@
+(* Compiles F1 Device Program *)
 let emit (prog : Ast.program) : string =
   (* 1. Header *)
   let device_header_emit = 
-    let headers = 
-      ["\"bsg_manycore.h\""; "\"bsg_set_tile_x_y.h\""] in
-    List.map Core_emit.header_emit headers
+    ["\"bsg_manycore.h\""; "\"bsg_set_tile_x_y.h\""]
+    |> List.map Core_emit.header_emit 
     |> String.concat "\n" in
 
   (* 2. constants from: 
@@ -53,8 +53,6 @@ let emit (prog : Ast.program) : string =
     List.map array_decl_emit ds.ds_data_decls
     |> String.concat "\n" in
 
-
-
   (* 4. Code block function
     Note: we only support up to one code block, called 'f', at the moment, 
     since we don't allow for multiple groups *)
@@ -63,34 +61,35 @@ let emit (prog : Ast.program) : string =
       then Error.unsupported_multiple_code_blocks
     else 
       List.map
-        (fun cb -> Core_emit.fun_emit "f" cb.Ast.cb_code)
+        (fun cb -> Core_emit.fun_emit 
+            None "f" [] (Core_emit.stmt_emit cb.Ast.cb_code))
         cs.Ast.cs_code_block_decls
         |> String.concat "\n\n" in
 
-  (*
-  5. Main declaration
-  int main()
-  {
-    // Sets the bsg_x and bsg_y global variables.
+  (* 5. Main init *)
+  let main_init : string = Core_emit.unindent
+    "// Sets the bsg_x and bsg_y global variables.
     bsg_set_tile_x_y();
     int num_tiles = bsg_num_tiles;
     int tile_id   = bsg_x_y_to_id( bsg_x, bsg_y );
     // each tile does the same work for now
-    int start_id = 0;
-  *)
+    int start_id = 0;" in
+    
 
-  (*
-  6. Execute code block
-  *)
+  (* 6. Execute code block *)
+  let execute_code_block : string = "f();" in
 
-  (*
-  7. Send finish and block while waiting
-
-    // each tile sends its own bsg_finish and host takes care of it
+  (* 7. Send finish and block while waiting *)
+  let finish_and_wait : string = Core_emit.unindent
+    "// each tile sends its own bsg_finish and host takes care of it
     bsg_finish();
+    bsg_wait_while(1);" in
 
-    bsg_wait_while(1);
-  } *)
+  let main_def : string = 
+    [main_init; execute_code_block; finish_and_wait]
+    |> String.concat "\n\n"
+    |> Core_emit.fun_emit (Some IntTyp) "main" [] in
+
 
   device_header_emit ^
   "\n\n" ^
@@ -99,4 +98,6 @@ let emit (prog : Ast.program) : string =
   "\n\n" ^
   array_decls_emit prog.Ast.data_section ^
   "\n\n" ^
-  code_blocks_emit prog.Ast.code_section
+  code_blocks_emit prog.Ast.code_section ^
+  "\n\n" ^
+  main_def

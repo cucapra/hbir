@@ -10,6 +10,11 @@ let indent (n : int) (s : string) : string =
   let indented_lines = List.map ((^) (indentation)) lines in
   String.concat "\n" indented_lines
 
+let unindent (s : string) : string =
+  String.split_on_char '\n' s
+  |> List.map String.trim
+  |> String.concat "\n"
+
 let rec stmt_emit (stmt : Ast.stmt) : string =
   match stmt with
     | SeqStmt (s1, s2) -> "%s;\n%s" #% (stmt_emit s1) (stmt_emit s2)
@@ -98,8 +103,22 @@ let array_decl_emit (tau : Ast.typ) (x : string) (dims : Ast.expr list) =
   "%s %s%s;" #% 
     (type_emit tau) x (dims_emit dims)
 
-let fun_emit (f : string) (s : Ast.stmt) : string =
-  "void %s()\n{\n%s\n}" #% f (indent 1 (stmt_emit s))
+let fun_emit (ret_typ : Ast.typ option) 
+             (f : string) 
+             (pars : (string * Ast.typ) list) 
+             (body : string) : string =
+  let ret_typ_emit =
+    match ret_typ with
+    | None -> "void"
+    | Some tau -> type_emit tau in
+
+  let pars_emit = 
+    List.map (fun p -> let (x, tau) = p in "%s %s" #% (type_emit tau) x) pars
+    |> String.concat ", " in
+
+  let body = indent 1 body in
+
+  "%s %s(%s)\n{\n%s\n}" #% ret_typ_emit f pars_emit body
 
 let header_emit (header_file : string) : string = 
   "#include %s" #% header_file
@@ -166,3 +185,18 @@ let host_execute_code_blocks_emit : string =
 "// Run all of the tiles
 hammaRunMultiple(fd, X1, Y1, X2, Y2);"
 
+
+
+
+(* Device Emit Chunks *)
+let device_main_decl_emit : string =
+  fun_emit (Some Ast.IntTyp) "main" []
+    begin unindent
+      "// Sets the bsg_x and bsg_y global variables.
+      bsg_set_tile_x_y();
+      int num_tiles = bsg_num_tiles;
+      int tile_id   = bsg_x_y_to_id( bsg_x, bsg_y );
+      // each tile does the same work for now
+      int start_id = 0;
+      "
+    end
