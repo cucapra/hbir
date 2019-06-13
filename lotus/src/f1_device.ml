@@ -56,7 +56,16 @@ let emit (prog : Ast.program) : string =
 
 
   (* 4. Code block function
-    Note: we only support up to one code block at the moment, since we don't allow for multiple groups *)
+    Note: we only support up to one code block, called 'f', at the moment, 
+    since we don't allow for multiple groups *)
+  let code_blocks_emit (cs : Ast.code_section) : string =
+    if List.length cs.Ast.cs_code_block_decls > 1
+      then Error.unsupported_multiple_code_blocks
+    else 
+      List.map
+        (fun cb -> Core_emit.fun_emit "f" cb.Ast.cb_code)
+        cs.Ast.cs_code_block_decls
+        |> String.concat "\n\n" in
 
   (*
   5. Main declaration
@@ -85,7 +94,9 @@ let emit (prog : Ast.program) : string =
 
   device_header_emit ^
   "\n\n" ^
-  constants_emit prog.Ast.data_section prog.Ast.target_section ^
+  constants_emit 
+    prog.Ast.data_section prog.Ast.target_section ^
   "\n\n" ^
-  array_decls_emit prog.Ast.data_section 
-
+  array_decls_emit prog.Ast.data_section ^
+  "\n\n" ^
+  code_blocks_emit prog.Ast.code_section

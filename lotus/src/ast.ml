@@ -1,27 +1,5 @@
-(* types *)
-type hbir_type =
-    | MemoryType of int
-    | TileType of int * int
-    | SizeType
-    | WidthType
-    | GroupType of int * int
-    | TemporalType of int
-    | ConstType
-
-and typ =
-    | BoolTyp
-    | IntTyp
-    | FloatTyp
-
-
-(* CODE ABOVE BEING GRADUALLY RESTRUCTURED BELOW,
- * when finished, all code will be 'BELOW' *)
-
-(* utility types *)
-and location = string list
-
 (* ------ program ------ *)
-and program = {
+type program = {
   target_section : target_section; 
   config_section : config_section;
   data_section : data_section; 
@@ -101,6 +79,11 @@ and code_block_decl = {
   cb_code : stmt
 }
 
+and typ =
+    | BoolTyp
+    | IntTyp
+    | FloatTyp
+
 and expr =
     | VarExpr of string
     | IntExpr of int
@@ -135,23 +118,8 @@ and stmt =
     | BsgFinishStmt
 
 
-(* FOR BACKWARDS COMPATIBILITY *)
-(* NOTE: remove this when no longer necessary backwards compatibility*)
-(* 
-and old_mem_decl = string * expr * (size_decl * width_decl)
-and old_tile =  string * (expr * expr)
-and old_tile_decl = string * (expr * expr) * (mem_decl option)
-and old_data_layout = string * mem_type * data_layout
+(* utility types *)
+and location = string list
 
-and size_decl = string
+(* TODO: consider factoring out the type (typ * string * expr) *)
 
-and width_decl = string
-
-and mem_type =
-    | Global
-    | Local
-
-and mem_location =
-    | Host
-    | Device
-    *)

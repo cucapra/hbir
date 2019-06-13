@@ -1,12 +1,3 @@
-let indent (n : int) (s : string) : string =
-  let rec indentation_builder (n : int) : string = 
-    if n == 0 then ""
-    else "\t" ^ indentation_builder (n-1) in
-  let indentation : string = indentation_builder n in
-  let lines : string list = String.split_on_char '\n' s in
-  let indented_lines = List.map ((^) (indentation)) lines in
-  String.concat "\n" indented_lines
-
 let emit (prog: Ast.program) : string = 
   (* 1. Headers *)
   let host_header_emit : string = 
@@ -107,35 +98,35 @@ let emit (prog: Ast.program) : string =
   let host_return_emit = Core_emit.return_emit (Ast.IntExpr 0) in
 
   (* 1. Headers *)
-  indent 0 host_header_emit ^ 
+  Core_emit.indent 0 host_header_emit ^ 
   "\n\n" ^
 
   (* 2. Constant Macros 
    * Currently, target section macros. 
    * Do these need to be macros? Should other variables also be macros?
    * Or should all macros be variables? *)
-  indent 0 (host_tile_size_constants_emit prog.target_section) ^ 
+  Core_emit.indent 0 (host_tile_size_constants_emit prog.target_section) ^ 
   "\n\n" ^
 
   (* 3. Main declaration and FPGA init: *)
-  indent 0 Core_emit.host_main_decl_emit ^ 
+  Core_emit.indent 0 Core_emit.host_main_decl_emit ^ 
   "\n\n" ^
 
   (* 4. Array Decls *)
-  indent 1 (host_data_decls_emit prog.data_section) ^ 
+  Core_emit.indent 1 (host_data_decls_emit prog.data_section) ^ 
   "\n\n" ^
 
   (* 5. Input Array Layouts *)
-  indent 1 (host_input_data_layouts_emit prog.data_section) ^ 
+  Core_emit.indent 1 (host_input_data_layouts_emit prog.data_section) ^ 
   "\n\n" ^
 
   (* 6. Start execution of code blocks and wait *)
-  indent 1 host_execute_blocks_emit ^ 
+  Core_emit.indent 1 host_execute_blocks_emit ^ 
   "\n\n" ^
 
   (* 7. Output Array Decl and Layout *)
-  indent 1 (host_output_data_layouts_emit prog.data_section) ^ 
+  Core_emit.indent 1 (host_output_data_layouts_emit prog.data_section) ^ 
   "\n\n" ^
 
   (* 8. Do stuff with output? Or Nothing? *)
-  indent 1 host_return_emit ^ "\n}"
+  Core_emit.indent 1 host_return_emit ^ "\n}"

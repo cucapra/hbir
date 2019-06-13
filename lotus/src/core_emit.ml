@@ -1,7 +1,42 @@
 (* Output String Templates *)
 let (#%) = Printf.sprintf
 
-let rec expr_emit (e : Ast.expr) : string =
+let indent (n : int) (s : string) : string =
+  let rec indentation_builder (n : int) : string = 
+    if n == 0 then ""
+    else "\t" ^ indentation_builder (n-1) in
+  let indentation : string = indentation_builder n in
+  let lines : string list = String.split_on_char '\n' s in
+  let indented_lines = List.map ((^) (indentation)) lines in
+  String.concat "\n" indented_lines
+
+let rec stmt_emit (stmt : Ast.stmt) : string =
+  match stmt with
+    | SeqStmt (s1, s2) -> "%s;\n%s" #% (stmt_emit s1) (stmt_emit s2)
+    | VarInitStmt (tau, x, e) -> var_init_emit tau x e
+    | VarAssignStmt (x, e) -> "%s = %s" #% x (expr_emit e)
+    | ArrayAssignStmt (a, dims, e) -> 
+        "%s = %s" #% (deref_emit a dims) (expr_emit e)
+    | IfStmt guarded_stmt -> 
+        begin match List.map guarded_stmt_emit guarded_stmt with
+        | [] -> ""
+        | if_gb::elif_gbs -> 
+            ("if " ^ if_gb) :: (List.map ((^) "elif ") elif_gbs)
+            |> String.concat "\n"
+        end
+    | WhileStmt (e, s) -> "while " ^ guarded_stmt_emit (e, s)
+    | ForStmt (x, range, s) -> 
+        begin match range with
+        | SingletonRange x1 -> 
+            "\n{\n\tint %s = %s;\n\t%s\n}" #% x (expr_emit x1) (stmt_emit s)
+        | SliceRange (x1, x2) -> 
+            "for(int %s = %s; %s < %s; %s++)\n{\n\t%s\n}" #% 
+              x (expr_emit x1) x (expr_emit x2) x (stmt_emit s)
+        end
+    | PrintStmt str -> "printf(\"%s\", " ^ str ^ ");"
+    | BsgFinishStmt -> "bsg_finish();"
+
+and expr_emit (e : Ast.expr) : string =
   let binop_emit (binop : Ast.binop) : string =
     match binop with
         | Ast.Plus -> "+"
@@ -22,38 +57,49 @@ let rec expr_emit (e : Ast.expr) : string =
   | IntExpr v -> string_of_int v
   | FloatExpr v -> string_of_float v
   | BoolExpr b -> if b then "true" else "false"
-  | DerefExpr (e, es) -> deref_emit e es
+  | DerefExpr (e, es) -> deref_emit (expr_emit e) es
   | BinAppExpr (binop, e1, e2) -> 
       "%s %s %s" #%
          (expr_emit e1) (binop_emit binop) (expr_emit e2)
   end
 
-and deref_emit (array_expr : Ast.expr) (dims : Ast.expr list) : string = expr_emit array_expr ^ dims_emit dims
-
-and dims_emit (ds : Ast.expr list) : string = 
-    List.map expr_emit ds |>
-    List.map ((#%) "[%s]") |>
-    String.concat ""
-
-let type_emit (g : Ast.typ) : string =
+and type_emit (g : Ast.typ) : string =
     match g with
     | BoolTyp -> "boolean"
     | IntTyp -> "int"
     | FloatTyp -> "float"
 
-let inout_dir_emit (dir : Ast.inout_dir) : string = 
+and inout_dir_emit (dir : Ast.inout_dir) : string = 
   match dir with
   | In -> "deviceToHost"
   | Out -> "hostToDevice"
 
+and guarded_stmt_emit (gs : Ast.expr * Ast.stmt) : string =
+  let (e, s) = gs in
+  "(%s)\n{%s\n}" #% (expr_emit e) (stmt_emit s)
 
-let array_access_brackets_emit (dims : string list) : string = 
+and var_init_emit (typ : Ast.typ) (x : string) (e : Ast.expr) : string = 
+  "%s %s = %s;" #% (type_emit typ) x (expr_emit e)
+
+(* a[e1]..[en] *)
+and deref_emit (a : string) (dims : Ast.expr list) : string = 
+  a ^ dims_emit dims
+
+(* [e1]..[en] *)
+and dims_emit (ds : Ast.expr list) : string = 
+    List.map expr_emit ds |>
+    List.map ((#%) "[%s]") |>
+    String.concat ""
+
+and array_access_brackets_emit (dims : string list) : string = 
   List.map ((#%) "[%s]") dims |> String.concat ""
 
 let array_decl_emit (tau : Ast.typ) (x : string) (dims : Ast.expr list) =
   "%s %s%s;" #% 
     (type_emit tau) x (dims_emit dims)
 
+let fun_emit (f : string) (s : Ast.stmt) : string =
+  "void %s()\n{\n%s\n}" #% f (indent 1 (stmt_emit s))
 
 let header_emit (header_file : string) : string = 
   "#include %s" #% header_file
@@ -62,9 +108,6 @@ let expr_macro_emit
   (var_name : string) (e : Ast.expr) : string = 
     "#define %s %s" #% var_name (expr_emit e)
 
-
-let var_init_emit (typ : Ast.typ) (x : string) (e : Ast.expr) : string = 
-  "%s %s = %s;" #% (type_emit typ) x (expr_emit e)
 
 let dynamic_alloc_array_emit (typ : Ast.typ)
                        (x : string)
