@@ -62,7 +62,7 @@ let emit (prog : Ast.program) : string =
     else 
       List.map
         (fun cb -> Core_emit.fun_emit 
-            None "f" [] (Core_emit.stmt_emit cb.Ast.cb_code))
+            "void" "f" [] (Core_emit.stmt_emit cb.Ast.cb_code))
         cs.Ast.cs_code_block_decls
         |> String.concat "\n\n" in
 
@@ -88,7 +88,7 @@ let emit (prog : Ast.program) : string =
   let main_def : string = 
     [main_init; execute_code_block; finish_and_wait]
     |> String.concat "\n\n"
-    |> Core_emit.fun_emit (Some IntTyp) "main" [] in
+    |> Core_emit.fun_emit "int" "main" [] in
 
 
   device_header_emit ^

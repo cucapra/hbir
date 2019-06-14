@@ -1,132 +1,85 @@
 let emit (prog: Ast.program) : string = 
-  (* 1. Headers *)
-  let host_header_emit : string = 
-    let header_files = ["\"f1_helper\""; "<stdlib.h>"] in
-    String.concat "\n" (List.map Core_emit.header_emit header_files) in
+  let header_emit : string = 
+    ["\"f1_helper.h\""; "<stdlib.h>"]
+    |> List.map Core_emit.header_emit
+    |> String.concat "\n"  in
 
-  (* 2. Constant Macros *)
-  let host_tile_size_constants_emit (ts : Ast.target_section) : string = 
-    match ts with
-    | [] -> ""
-    | targ::targs ->
-        if List.length targs >= 1
-          then failwith Error.unsupported_many_tile_groups_error
+  let global_constants_emit (ts : Ast.target_section) (ds : Ast.data_section) : string = 
+
+    let tile_size_constants_emit (td : Ast.target_decl) : string =
+      match td with
+      | GlobalMemDecl _ -> ""
+      | TileDecl tile ->
+        if List.length tile.tile_dims != 2
+          then failwith Error.only_two_dims_error
           else
-            match targ with
-            | GlobalMemDecl _ -> ""
-            | TileDecl tile ->
-              if List.length tile.tile_dims != 2
-                then failwith Error.only_two_dims_error
-                else
-                  let tile_size_consts : (string * Ast.expr) list= 
-                    [("X1", IntExpr 0);
-                     ("X2", List.nth tile.tile_dims 0);
-                     ("Y1", IntExpr 0);
-                     ("Y2", List.nth tile.tile_dims 1)] in
-                    List.map
-                      (fun decl -> 
-                        let (x, e) = decl in 
-                        Core_emit.expr_macro_emit x e) tile_size_consts
-                    |> String.concat "\n" in
+            [("X1", Ast.IntExpr 0);
+             ("X2", List.nth tile.tile_dims 0);
+             ("Y1", Ast.IntExpr 0);
+             ("Y2", List.nth tile.tile_dims 1)]
+            |> List.map
+               (fun decl -> 
+                 let (x, e) = decl in 
+                 Core_emit.expr_macro_emit x e)
+            |> String.concat "\n" in
+
+    let constant_decl_emit (const_decl : Ast.typ * string * Ast.expr) =
+      let (typ, x, e) = const_decl in 
+      Core_emit.var_init_emit typ x e in
+
+    ["// Tile Size Constants\n" ^
+     (List.map tile_size_constants_emit ts |> String.concat "\n");
+     "// Data Section Constants\n" ^
+     (List.map constant_decl_emit ds.ds_constant_decls |> String.concat "\n");]
+    |> String.concat "\n\n" in
 
 
-  (* 4. Array Decls *)
-  let host_data_decls_emit (ds : Ast.data_section) : string =
-    let constant_decls_emit : string = 
-      let constant_decl_emit 
-        (const_decl : (Ast.typ * string * Ast.expr)) =
-        match const_decl with
-        (typ, x, e) -> Core_emit.var_init_emit typ x e in
-      String.concat "" (List.map constant_decl_emit ds.ds_constant_decls) in
-
-    let data_decls_emit : string = 
-      let data_decl_emit (d : Ast.data_decl) : string =
-        Core_emit.dynamic_alloc_array_emit 
-          d.data_type d.data_name d.data_dims in
-      String.concat "\n" (List.map data_decl_emit ds.ds_data_decls) in
-
-    constant_decls_emit ^ 
-    "// Initialize Arrays" ^
-    "\n" ^
-    data_decls_emit in
-
-  (* 5. Input Array Layouts *)
-  let host_input_data_layouts_emit (ds : Ast.data_section) : string =
-    let layout_init_emitted : string =
-      if List.exists 
-          (fun d -> d.Ast.data_layout == Ast.Blocked) ds.ds_data_decls 
-        then Core_emit.host_blocked_layout_init_emit
-      else if List.length ds.ds_data_decls == 0 
-        then "" 
-      else failwith Error.unsupported_layout_error in
-
-    let input_layouts_emitted : string =
-      let layout_emit (d : Ast.data_decl) : string =
-        match d.data_layout with
-        | Blocked -> 
-            Core_emit.host_blocked_layout_send_emit 
-              d.data_name d.data_type d.data_dir
-        | _ -> failwith Error.unsupported_layout_error in
-      let input_data_decls =
-        List.filter 
-          (fun d -> d.Ast.data_dir == Ast.In) ds.ds_data_decls in
-      String.concat "\n" (List.map layout_emit input_data_decls) in
-
-    layout_init_emitted ^
-    "\n" ^
-    input_layouts_emitted in
-
-
-  (* 6. Start execution of code blocks and wait *)
-  let host_execute_blocks_emit = Core_emit.host_execute_code_blocks_emit in
-
-  (* 7. Output Array Decl and Layout *)
-  let host_output_data_layouts_emit (ds : Ast.data_section) : string =
+  let main_def_emit (ds : Ast.data_section) : string =
     let layout_emit (d : Ast.data_decl) : string =
       match d.data_layout with
       | Blocked -> 
-          Core_emit.host_blocked_layout_send_emit 
-            d.Ast.data_name 
-            d.data_type 
-            d.data_dir
+          [Core_emit.host_blocked_layout_init_emit d.data_name d.data_dims;
+           Core_emit.host_blocked_layout_send_emit 
+            d.data_name d.data_type d.data_dir] |> String.concat "\n\n"
       | _ -> failwith Error.unsupported_layout_error in
-    let output_data_decls =
-      List.filter (fun d -> d.Ast.data_dir == Ast.Out) ds.ds_data_decls in
-    String.concat "\n" (List.map layout_emit output_data_decls) in
 
-  (* 8. Do stuff with output *)
-  let host_return_emit = Core_emit.return_emit (Ast.IntExpr 0) in
+    let array_decl_emit (d : Ast.data_decl) : string =
+      Core_emit.dynamic_alloc_array_emit d.data_type d.data_name d.data_dims in
 
-  (* 1. Headers *)
-  Core_emit.indent 0 host_header_emit ^ 
+    let array_decls : string = 
+     "// Array Declarations\n" ^
+     (List.map array_decl_emit ds.ds_data_decls |> String.concat "\n") in
+
+    let input_array_layouts : string = 
+      ds.Ast.ds_data_decls
+      |> List.filter (fun d -> d.Ast.data_dir == Ast.In) 
+      |> List.map layout_emit
+      |> String.concat "\n\n" in
+
+    let output_array_layouts : string = 
+      ds.Ast.ds_data_decls
+      |> List.filter (fun d -> d.Ast.data_dir == Ast.Out) 
+      |> List.map layout_emit
+      |> String.concat "\n\n" in
+
+    let execute_blocks_emit =
+      Core_emit.host_execute_code_blocks_emit in
+
+    let return_emit = Core_emit.return_emit (Ast.IntExpr 0) in
+
+    Core_emit.fun_emit "int" "main" [("argc", "int"); ("*argv[]", "char")]
+      ([Core_emit.host_main_init_emit;
+       array_decls;
+       input_array_layouts;
+       execute_blocks_emit;
+       output_array_layouts;
+       return_emit;]
+      |> String.concat "\n\n") in
+
+  header_emit ^ 
   "\n\n" ^
 
-  (* 2. Constant Macros 
-   * Currently, target section macros. 
-   * Do these need to be macros? Should other variables also be macros?
-   * Or should all macros be variables? *)
-  Core_emit.indent 0 (host_tile_size_constants_emit prog.target_section) ^ 
+  global_constants_emit prog.Ast.target_section prog.Ast.data_section ^
   "\n\n" ^
 
-  (* 3. Main declaration and FPGA init: *)
-  Core_emit.indent 0 Core_emit.host_main_decl_emit ^ 
-  "\n\n" ^
-
-  (* 4. Array Decls *)
-  Core_emit.indent 1 (host_data_decls_emit prog.data_section) ^ 
-  "\n\n" ^
-
-  (* 5. Input Array Layouts *)
-  Core_emit.indent 1 (host_input_data_layouts_emit prog.data_section) ^ 
-  "\n\n" ^
-
-  (* 6. Start execution of code blocks and wait *)
-  Core_emit.indent 1 host_execute_blocks_emit ^ 
-  "\n\n" ^
-
-  (* 7. Output Array Decl and Layout *)
-  Core_emit.indent 1 (host_output_data_layouts_emit prog.data_section) ^ 
-  "\n\n" ^
-
-  (* 8. Do stuff with output? Or Nothing? *)
-  Core_emit.indent 1 host_return_emit ^ "\n}"
+  main_def_emit prog.Ast.data_section

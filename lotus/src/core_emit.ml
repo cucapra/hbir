@@ -34,9 +34,7 @@ let rec stmt_emit (stmt : Ast.stmt) : string =
         begin match range with
         | SingletonRange x1 -> 
             "\n{\n\tint %s = %s;\n\t%s\n}" #% x (expr_emit x1) (stmt_emit s)
-        | SliceRange (x1, x2) -> 
-            "for(int %s = %s; %s < %s; %s++)\n{\n\t%s\n}" #% 
-              x (expr_emit x1) x (expr_emit x2) x (stmt_emit s)
+        | SliceRange (x1, x2) -> for_emit x x1 x2 (stmt_emit s)
         end
     | PrintStmt str -> "printf(\"%s\", " ^ str ^ ");"
     | BsgFinishStmt -> "bsg_finish();"
@@ -76,15 +74,12 @@ and type_emit (g : Ast.typ) : string =
 
 and inout_dir_emit (dir : Ast.inout_dir) : string = 
   match dir with
-  | In -> "deviceToHost"
-  | Out -> "hostToDevice"
+  | In -> "hostToDevice"
+  | Out -> "deviceToHost"
 
-and guarded_stmt_emit (gs : Ast.expr * Ast.stmt) : string =
-  let (e, s) = gs in
-  "(%s)\n{%s\n}" #% (expr_emit e) (stmt_emit s)
-
-and var_init_emit (typ : Ast.typ) (x : string) (e : Ast.expr) : string = 
-  "%s %s = %s;" #% (type_emit typ) x (expr_emit e)
+and for_emit (loop_var : string) (lower_bound : Ast.expr) (upper_bound : Ast.expr) (loop_body : string) =
+  "for(int %s = %s; %s < %s; %s++) {\n%s\n}" #% 
+    loop_var (expr_emit lower_bound) loop_var (expr_emit upper_bound) loop_var (indent 1 loop_body)
 
 (* a[e1]..[en] *)
 and deref_emit (a : string) (dims : Ast.expr list) : string = 
@@ -96,29 +91,31 @@ and dims_emit (ds : Ast.expr list) : string =
     List.map ((#%) "[%s]") |>
     String.concat ""
 
-and array_access_brackets_emit (dims : string list) : string = 
+and guarded_stmt_emit (gs : Ast.expr * Ast.stmt) : string =
+  let (e, s) = gs in
+  "(%s)\n{%s\n}" #% (expr_emit e) (stmt_emit s)
+
+and var_init_emit (typ : Ast.typ) (x : string) (e : Ast.expr) : string = 
+  "%s %s = %s;" #% (type_emit typ) x (expr_emit e)
+
+let array_access_brackets_emit (dims : string list) : string = 
   List.map ((#%) "[%s]") dims |> String.concat ""
 
 let array_decl_emit (tau : Ast.typ) (x : string) (dims : Ast.expr list) =
   "%s %s%s;" #% 
     (type_emit tau) x (dims_emit dims)
 
-let fun_emit (ret_typ : Ast.typ option) 
+let fun_emit (ret_typ : string) 
              (f : string) 
-             (pars : (string * Ast.typ) list) 
+             (pars : (string * string) list) 
              (body : string) : string =
-  let ret_typ_emit =
-    match ret_typ with
-    | None -> "void"
-    | Some tau -> type_emit tau in
-
   let pars_emit = 
-    List.map (fun p -> let (x, tau) = p in "%s %s" #% (type_emit tau) x) pars
+    List.map (fun p -> let (x, tau) = p in "%s %s" #% tau x) pars
     |> String.concat ", " in
 
   let body = indent 1 body in
 
-  "%s %s(%s)\n{\n%s\n}" #% ret_typ_emit f pars_emit body
+  "%s %s(%s)\n{\n%s\n}" #% ret_typ f pars_emit body
 
 let header_emit (header_file : string) : string = 
   "#include %s" #% header_file
@@ -144,53 +141,56 @@ let return_emit (e : Ast.expr) : string =
 
 
 (* Host Emit Chunks *)
-let host_main_decl_emit : string =
-"int main(int argc, char *argv[]) {
-\tassert(argc == 2);
-\tchar *manycore_program = argv[1];
+let host_main_init_emit : string =
+    begin unindent
+      "assert(argc == 2);
+      char *manycore_program = argv[1];
 
-\t// Initialize and get userspace pointer to FPGA
-\tuint8_t fd;
-\thammaInit(&fd);"
+      // Initialize and get userspace pointer to FPGA
+      uint8_t fd;
+      hammaInit(&fd);
 
-let host_blocked_layout_init_emit : string = 
-"// 2D Blocked Layout Init
-int num_cores = (X2 - X1) * (Y2 - Y1);
-int dim_per_core = dim / num_cores;\n"
+      // Load SPMD program in each core
+      hammaLoadMultiple(fd, manycore_program, X1, Y1, X2, Y2);"
+    end
+
+let host_blocked_layout_init_emit (a : string) (dims : Ast.expr list) : string =
+    ["// 2D Blocked Layout Init of Input: %s" #% a;
+     "int dim_%s = %s;" #% a (dims |> List.map expr_emit |> String.concat " * ");
+     "int dim_%s_per_core = dim_%s / (X2 - X1) * (Y2 - Y1);" #% a a]
+     |> String.concat "\n"
 
 let host_blocked_layout_send_emit (x: string)
                                  (typ: Ast.typ) 
                                  (dir : Ast.inout_dir) : string =
-  let dir_str = 
+  let dir_str =
     match dir with
     | In -> "Send"
     | Out -> "Receive" in
-"// 2D Blocked Layout %s of Array %s
-for (int y = Y1; y < Y2; y++) {
-  for (int x = X1; x < X2; x++) {
-    // This offset sends blocks vectors across cores
-    // in column-major order
-    int offset = (y-Y1) * (X2-X1) * dim_per_core +
-                 (x-X1) * dim_per_core;
 
-    hammaSymbolMemcpy(fd, x, y, manycore_program, \"%s\",
-                      (void*)(%s + offset),
-                      dim_per_core * sizeof(%s),
-                      %s);
-  }
-}\n" #% dir_str x x x 
-        (type_emit typ) (inout_dir_emit dir)
+  ["// 2D Blocked Layout %s of Array %s\n" #% dir_str x ^
+   for_emit "y" (VarExpr "Y1") (VarExpr "Y2") 
+     (for_emit "x" (VarExpr "X1") (VarExpr "X2")
+     (["// This offset sends blocks vectors across cores";
+       "// in column-major order";
+       "int offset = (y-Y1) * (X2-X1) * dim_%s_per_core +" #% x;
+       "(x-X1) * dim_%s_per_core;" #% x;
+       "hammaSymbolMemcpy(fd, x, y, manycore_program, \"%s\",
+                          (void*)(%s + offset),
+                          dim_%s_per_core * sizeof(%s),
+                          %s);" #% x x x (type_emit typ) (inout_dir_emit dir);] |> String.concat "\n"));
+     ]
+  |> String.concat "\n"
+   
 
 let host_execute_code_blocks_emit : string =
-"// Run all of the tiles
-hammaRunMultiple(fd, X1, Y1, X2, Y2);"
-
-
-
+  ["// Run all of the tiles";
+   "hammaRunMultiple(fd, X1, Y1, X2, Y2);"]
+  |> String.concat "\n"
 
 (* Device Emit Chunks *)
 let device_main_decl_emit : string =
-  fun_emit (Some Ast.IntTyp) "main" []
+  fun_emit "void" "main" []
     begin unindent
       "// Sets the bsg_x and bsg_y global variables.
       bsg_set_tile_x_y();
