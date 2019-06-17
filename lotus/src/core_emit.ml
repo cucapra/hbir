@@ -74,8 +74,8 @@ and type_emit (g : Ast.typ) : string =
 
 and inout_dir_emit (dir : Ast.inout_dir) : string = 
   match dir with
-  | In -> "hostToDevice"
-  | Out -> "deviceToHost"
+  | In -> "hb_mc_memcpy_to_device"
+  | Out -> "hb_mc_memcpy_to_host"
 
 and for_emit (loop_var : string) (lower_bound : Ast.expr) (upper_bound : Ast.expr) (loop_body : string) =
   "for(int %s = %s; %s < %s; %s++) {\n%s\n}" #% 
@@ -121,8 +121,8 @@ let header_emit (header_file : string) : string =
   "#include %s" #% header_file
 
 let expr_macro_emit
-  (var_name : string) (e : Ast.expr) : string = 
-    "#define %s %s" #% var_name (expr_emit e)
+  (var_name : string) (s : string) : string = 
+    "#define %s %s" #% var_name s
 
 
 let dynamic_alloc_array_emit (typ : Ast.typ)
@@ -141,24 +141,27 @@ let return_emit (e : Ast.expr) : string =
 
 
 (* Host Emit Chunks *)
-let host_main_init_emit : string =
-    begin unindent
-      "assert(argc == 2);
-      char *manycore_program = argv[1];
 
-      // Initialize and get userspace pointer to FPGA
-      uint8_t fd;
-      hammaInit(&fd);
+let host_fun_init_emit (fun_name : string) : string =
+  "int err;
 
-      // Load SPMD program in each core
-      hammaLoadMultiple(fd, manycore_program, X1, Y1, X2, Y2);"
-    end
+  // Initialize the device.
+  hb_mc_device_t device;
+  hb_mc_dimension_t mesh_dim = {.x = MESH_X, .y = MESH_Y};
+  err = hb_mc_device_init(&device, \"~/\", 0,  mesh_dim);
+  if (err) return err;
 
+  // Load the `%s.riscv` program.
+  err = hb_mc_device_program_init(&device, \"%s.riscv\", \"~/\", 0);
+  if (err) return err;" #% fun_name fun_name
+  |> unindent
+
+(*
 let host_blocked_layout_init_emit (a : string) (dims : Ast.expr list) : string =
-    ["// 2D Blocked Layout Init of Input: %s" #% a;
-     "int dim_%s = %s;" #% a (dims |> List.map expr_emit |> String.concat " * ");
-     "int dim_%s_per_core = dim_%s / (X2 - X1) * (Y2 - Y1);" #% a a]
-     |> String.concat "\n"
+  ["// 2D Blocked Layout Init of Input: %s" #% a;
+   "int dim_%s = %s;" #% a (dims |> List.map expr_emit |> String.concat " * ");
+   "int dim_%s_per_core = dim_%s / (X2 - X1) * (Y2 - Y1);" #% a a]
+   |> String.concat "\n"
 
 let host_blocked_layout_send_emit (x: string)
                                  (typ: Ast.typ) 
@@ -176,7 +179,7 @@ let host_blocked_layout_send_emit (x: string)
        "int offset = (y-Y1) * (X2-X1) * dim_%s_per_core +" #% x;
        "(x-X1) * dim_%s_per_core;" #% x;
        "hammaSymbolMemcpy(fd, x, y, manycore_program, \"%s\",
-                          (void*)(%s + offset),
+                          (void* )(%s + offset),
                           dim_%s_per_core * sizeof(%s),
                           %s);" #% x x x (type_emit typ) (inout_dir_emit dir);] |> String.concat "\n"));
      ]
@@ -188,6 +191,7 @@ let host_execute_code_blocks_emit : string =
    "hammaRunMultiple(fd, X1, Y1, X2, Y2);"]
   |> String.concat "\n"
 
+*)
 (* Device Emit Chunks *)
 let device_main_decl_emit : string =
   fun_emit "void" "main" []

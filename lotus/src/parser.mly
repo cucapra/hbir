@@ -55,6 +55,7 @@ open Ast
 %token POUND_SIGN
 %token EOF
 
+%token <string> FILENAME
 %token <int> INT_LITERAL
 %token <float> FLOAT_LITERAL
 %token <bool> BOOL_LITERAL
@@ -97,7 +98,9 @@ let main :=
       ~ = data_section; 
       ~ = code_section; EOF; 
       {
-        { target_section;
+        { 
+          prog_name = "f";
+          target_section;
           config_section;
           data_section;
           code_section; }
