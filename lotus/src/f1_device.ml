@@ -14,8 +14,8 @@ let emit (prog : Ast.program) : string =
   let constants_emit (ds : Ast.data_section) 
                      (ts : Ast.target_section) : string =
     let constant_emit (decl : Ast.typ * string * Ast.expr) : string =
-      let (tau, x, e) = decl in
-      Core_emit.var_init_emit tau x e in
+      let (_, x, e) = decl in
+      Core_emit.expr_macro_emit x e in
 
     let data_section_constants : string list = 
       List.map constant_emit ds.Ast.ds_constant_decls in

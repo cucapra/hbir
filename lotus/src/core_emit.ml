@@ -17,11 +17,11 @@ let unindent (s : string) : string =
 
 let rec stmt_emit (stmt : Ast.stmt) : string =
   match stmt with
-    | SeqStmt (s1, s2) -> "%s;\n%s" #% (stmt_emit s1) (stmt_emit s2)
+    | SeqStmt (s1, s2) -> "%s\n%s" #% (stmt_emit s1) (stmt_emit s2)
     | VarInitStmt (tau, x, e) -> var_init_emit tau x e
-    | VarAssignStmt (x, e) -> "%s = %s" #% x (expr_emit e)
+    | VarAssignStmt (x, e) -> "%s = %s;" #% x (expr_emit e)
     | ArrayAssignStmt (a, dims, e) -> 
-        "%s = %s" #% (deref_emit a dims) (expr_emit e)
+        "%s = %s;" #% (deref_emit a dims) (expr_emit e)
     | IfStmt guarded_stmt -> 
         begin match List.map guarded_stmt_emit guarded_stmt with
         | [] -> ""
