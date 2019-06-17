@@ -4,6 +4,7 @@ open Ast
 (* Translates AST to C-like code which GCC can compile *)
 (* Should we also handle invoking gcc from here to create the object file? Or let the user do this from an emitted C program *)
 
+(*
 let rec convert_expr (e : expr) : string =
     match e with
     (*TODO: Need to fix this *)
@@ -67,9 +68,9 @@ and convert_stmtlist (sl : stmt list) : string =
     match sl with
     | [] -> "//empty stmt list\n"
     | s::st -> ((convert_stmt s)  ^ "\n" ^ (convert_stmtlist st))
-
-let convert_ast (prog : program) : string =
-    match prog with
+*)
+let convert_ast (_: program) : string = ""
+(*
         | (_, _, _, c) -> "int main( int argc, char * argv [] ) {\n" ^
             match c with
             | (_, cl) ->
@@ -77,3 +78,4 @@ let convert_ast (prog : program) : string =
                 | [] -> "//empty code list\n}\n"
                 | ch::_ -> match ch with
                     | (_, sl) -> (convert_stmtlist sl) ^ "}\n"
+                    *)
