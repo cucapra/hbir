@@ -91,6 +91,11 @@ and dims_emit (ds : Ast.expr list) : string =
     List.map ((#%) "[%s]") |>
     String.concat ""
 
+and dims_product_emit (dims : Ast.expr list) : string =
+  dims
+  |> List.map expr_emit
+  |> String.concat " * "
+
 and guarded_stmt_emit (gs : Ast.expr * Ast.stmt) : string =
   let (e, s) = gs in
   "(%s)\n{%s\n}" #% (expr_emit e) (stmt_emit s)

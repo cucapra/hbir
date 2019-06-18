@@ -1,6 +1,5 @@
 (* ------ program ------ *)
 type program = {
-  prog_name : string;
   target_section : target_section; 
   config_section : config_section;
   data_section : data_section; 

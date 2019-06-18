@@ -31,18 +31,18 @@ let write_bsg (prog : program) : unit =
 
 let run_f1 : bool ref = ref false
 let set_f1 () : unit = run_f1 := true
-let write_f1 (prog : program) : unit =
+let write_f1 (prog : program) (filename : string) : unit =
     let out_dir : string = "." in
     let _ = Sys.command ("mkdir -p " ^ out_dir) in
-    let ch1 = open_out (*f ^*) (out_dir ^ "/device.c") in
-    output_string ch1 (F1_device.emit prog);
+    let ch1 = open_out (out_dir ^ "/" ^ filename ^ ".c") in
+    output_string ch1 (F1_device.emit prog filename);
     close_out ch1;
     let ch2 = open_out (out_dir ^ "/Makefile") in
     output_string ch2 ("");
     close_out ch2;
     (* PBB: generate host program *)
-    let ch3 = open_out (*f ^*) (out_dir ^ "/host.c") in
-    output_string ch3 (F1_host.emit prog);
+    let ch3 = open_out (out_dir ^ "/host.c") in
+    output_string ch3 (F1_host.emit prog filename);
     close_out ch3;
     ()
 
@@ -95,7 +95,14 @@ let prog =
     if !run_pp then print_endline (Ops.pretty_program prog);
     (* TODO: Should create a new directory with main.c and Makefile to mirror bsg_manycore programsg *)
     if !run_bsg then write_bsg prog;
-    if !run_f1 then write_f1 prog;
+    if !run_f1 then 
+      let filename : string = 
+        String.split_on_char '/' f
+        |> List.rev
+        |> List.hd 
+        |> String.split_on_char '.' 
+        |> List.hd in
+      write_f1 prog filename;
     if !run_gcc then
         let out_dir : string = "gcc-gen" in
         let _ = Sys.command ("mkdir -p " ^ out_dir) in

@@ -1,4 +1,4 @@
-let emit (prog: Ast.program) : string =
+let emit (prog: Ast.program) (filename : string) : string =
   let header_emit : string =
     ["<bsg_manycore_cuda.h>"; "<stdio.h>"; "<stdlib.h>"]
     |> List.map Core_emit.header_emit
@@ -62,11 +62,6 @@ let emit (prog: Ast.program) : string =
          |> Core_emit.unindent) in
 
   let do_fun_def_emit (fun_name : string) (ds : Ast.data_decl list) : string =
-    let dims_product_emit (dims : Ast.expr list) : string =
-      dims
-      |> List.map Core_emit.expr_emit
-      |> String.concat " * " in
-
     let eva_init_emit : string =
       let eva_init_comment : string = Core_emit.unindent
         "// Allocate space on the device for the three arguments we'll pass to the
@@ -82,8 +77,8 @@ let emit (prog: Ast.program) : string =
         (*TODO: generalize hardcoded int32_t *)
         ds
         |> List.map (fun d ->
-             "hb_mc_device_malloc(%%device, %s * sizeof(int32_t), %s)" #% 
-              (dims_product_emit d.Ast.data_dims) d.Ast.data_name)  
+             "hb_mc_device_malloc(&device, %s * sizeof(int32_t), &%s_addr)" #% 
+              (Core_emit.dims_product_emit d.Ast.data_dims) d.Ast.data_name)  
         |> error_cascade in
 
       [eva_init_comment;
@@ -94,7 +89,7 @@ let emit (prog: Ast.program) : string =
 
     let hb_mc_device_memcpy_emit (d : Ast.data_decl) : string =
       let name = d.Ast.data_name in
-      let size_expr_emit = dims_product_emit d.Ast.data_dims in
+      let size_expr_emit = Core_emit.dims_product_emit d.Ast.data_dims in
       "hb_mc_device_memcpy(&device, (void*)((intptr_t)%s_addr),
           \t\t&%s, %s * sizeof(int32_t), %s)" #% 
           name name size_expr_emit (Core_emit.inout_dir_emit d.Ast.data_dir) in
@@ -174,7 +169,7 @@ let emit (prog: Ast.program) : string =
     let params : (string * string) list =
       ds
       |> List.map (fun d -> 
-          (d.Ast.data_name, 
+          ("*" ^ d.Ast.data_name, 
            (Core_emit.type_emit d.Ast.data_type) ^ "32_t")) in
 
     Core_emit.fun_emit "int" ("do_" ^ fun_name) params
@@ -186,10 +181,10 @@ let emit (prog: Ast.program) : string =
        cleanup_emit;]
       |> String.concat "\n\n") in
 
-  header_emit ^ 
-  "\n\n" ^
-
   global_constants_emit prog.Ast.target_section prog.Ast.data_section ^
   "\n\n" ^
 
-  do_fun_def_emit prog.prog_name prog.Ast.data_section.ds_data_decls
+  header_emit ^ 
+  "\n\n" ^
+
+  do_fun_def_emit filename prog.Ast.data_section.ds_data_decls

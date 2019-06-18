@@ -99,7 +99,6 @@ let main :=
       ~ = code_section; EOF; 
       {
         { 
-          prog_name = "f";
           target_section;
           config_section;
           data_section;
