@@ -62,7 +62,7 @@ and expr_emit (e : Ast.expr) : string =
   | BoolExpr b -> if b then "true" else "false"
   | DerefExpr (e, es) -> deref_emit (expr_emit e) es
   | BinAppExpr (binop, e1, e2) -> 
-      "%s %s %s" #%
+      "(%s %s %s)" #%
          (expr_emit e1) (binop_emit binop) (expr_emit e2)
   end
 

@@ -90,9 +90,17 @@ let emit (prog: Ast.program) (filename : string) : string =
     let hb_mc_device_memcpy_emit (d : Ast.data_decl) : string =
       let name = d.Ast.data_name in
       let size_expr_emit = Core_emit.dims_product_emit d.Ast.data_dims in
-      "hb_mc_device_memcpy(&device, (void*)((intptr_t)%s_addr),
-          \t\t&%s, %s * sizeof(int32_t), %s)" #% 
-          name name size_expr_emit (Core_emit.inout_dir_emit d.Ast.data_dir) in
+      let inout_dir_emit = Core_emit.inout_dir_emit d.Ast.data_dir in
+
+      let eva_template s = "(void*)((intptr_t)%s_addr)" #% s in
+      let memcpy_template dst src = 
+        "hb_mc_device_memcpy(&device, %s,
+          \t\t%s, %s * sizeof(int32_t), %s)" 
+          #% dst src size_expr_emit inout_dir_emit in
+
+      match d.Ast.data_dir with
+      | In -> memcpy_template (eva_template name) name
+      | Out -> memcpy_template name (eva_template name) in
 
     let input_send_emit : string =
       let input_send_comment : string = Core_emit.unindent
