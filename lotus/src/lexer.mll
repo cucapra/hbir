@@ -47,6 +47,7 @@ rule token =
     | "arrange"     { ARRANGE }
     | "as"          { AS }
     | "at"          { AT }
+    | "over"        { OVER }
     | "group"       { GROUP }
     | "block"       { BLOCK }
     (* TODO: Test to make sure having these here doesn't mean ids can't use these *)
@@ -62,7 +63,7 @@ rule token =
     | "for"         { FOR }
     | "iterator"    { ITERATOR }
     | "in"          { IN }
-
+    | "extern"      { EXTERN }
     | "if"          { IF }
     | "else"        { ELSE }
     | "int"         { INT }

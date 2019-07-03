@@ -40,9 +40,7 @@ and group_decl = {
   sub_groups : group_decl list
 }
 
-and range = 
-      SingletonRange of expr
-    | SliceRange of expr * expr
+and range = expr option * expr option
 
 (* ------ data section ------ *)
 and data_section = {
@@ -71,6 +69,7 @@ and data_layout =
 (* ------ code section ------ *)
 and code_section = {
   cs_constant_decls : (typ * string * expr) list;
+  cs_extern_fun_decls : (string * (parameter list) * typ) list;
   cs_code_block_decls : code_block_decl list;
 }
 
@@ -113,13 +112,14 @@ and stmt =
     | ArrayAssignStmt of string * expr list * expr
     | IfStmt of (expr * stmt) list
     | WhileStmt of expr * stmt
-    | ForStmt of string * range * stmt
+    | ForOverStmt of string * string * range * stmt
+    | ForInStmt of string * range * stmt
     | PrintStmt of string
     | BsgFinishStmt
 
 
 (* utility types *)
 and location = string list
-
+and parameter = string * typ
 (* TODO: consider factoring out the type (typ * string * expr) *)
 

@@ -13,3 +13,5 @@ let no_output_array : string =
   "Data Section Error: at least one output array must be declared."
 let unsupported_multiple_code_blocks : string =
   "Code Section Error: only up to 1 code block supported."
+let unsupported_abstract_iteration (n : int) : string =
+  "Code Section Error: abstract iteration unsupported for " ^ string_of_int n ^ " dimensional tensor."

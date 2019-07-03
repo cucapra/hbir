@@ -22,8 +22,8 @@ let emit (prog: Ast.program) (filename : string) : string =
         if List.length tile.tile_dims != 2
           then failwith Error.only_two_dims_error
           else
-            [("MESH_X", List.nth tile.tile_dims 1 |> Core_emit.expr_emit);
-             ("MESH_Y", List.nth tile.tile_dims 0 |> Core_emit.expr_emit);]
+            [("MESH_X", List.nth tile.tile_dims 0 |> Core_emit.expr_emit);
+             ("MESH_Y", List.nth tile.tile_dims 1 |> Core_emit.expr_emit);]
             |> List.map
                (fun decl -> 
                  let (x, e) = decl in 

@@ -15,27 +15,74 @@ let unindent (s : string) : string =
   |> List.map String.trim
   |> String.concat "\n"
 
-let rec stmt_emit (stmt : Ast.stmt) : string =
+type stmt_ctxt = {
+  ctxt_data_decls : Ast.data_decl list
+  (*ctxt_tile_decls : Ast.tile_decl list *)
+}
+
+let build_stmt_ctxt (prog : Ast.program) : stmt_ctxt = 
+  {ctxt_data_decls = prog.data_section.ds_data_decls }
+
+let rec stmt_emit (ctxt : stmt_ctxt) (stmt : Ast.stmt) : string =
   match stmt with
-    | SeqStmt (s1, s2) -> "%s\n%s" #% (stmt_emit s1) (stmt_emit s2)
+    | SeqStmt (s1, s2) -> "%s\n%s" #% (stmt_emit ctxt s1) (stmt_emit ctxt s2)
     | VarInitStmt (tau, x, e) -> var_init_emit tau x e
     | VarAssignStmt (x, e) -> "%s = %s;" #% x (expr_emit e)
     | ArrayAssignStmt (a, dims, e) -> 
         "%s = %s;" #% (deref_emit a dims) (expr_emit e)
-    | IfStmt guarded_stmt -> 
-        begin match List.map guarded_stmt_emit guarded_stmt with
+    | IfStmt guarded_stmts -> 
+        begin match List.map (guarded_stmt_emit ctxt) guarded_stmts with
         | [] -> ""
         | if_gb::elif_gbs -> 
             ("if " ^ if_gb) :: (List.map ((^) "elif ") elif_gbs)
             |> String.concat "\n"
         end
-    | WhileStmt (e, s) -> "while " ^ guarded_stmt_emit (e, s)
-    | ForStmt (x, range, s) -> 
-        begin match range with
-        | SingletonRange x1 -> 
-            "\n{\n\tint %s = %s;\n\t%s\n}" #% x (expr_emit x1) (stmt_emit s)
-        | SliceRange (x1, x2) -> for_emit x x1 x2 (stmt_emit s)
-        end
+    | WhileStmt (e, s) -> "while " ^ guarded_stmt_emit ctxt (e, s)
+    | ForInStmt (i, (x1, x2), body) ->
+      let lower_bound = 
+        match x1 with
+        | None -> Ast.IntExpr 0
+        | Some x1 -> x1 in
+
+      let upper_bound =
+        match x2 with
+        | None -> failwith "upper bound required in range 'for in' loop range"
+        | Some x2 -> x2 in
+
+      let for_init_stmt = Ast.VarInitStmt (Ast.IntTyp, i, lower_bound) in
+      let loop_cond_expr = Ast.BinAppExpr (Ast.Lt, Ast.VarExpr i, upper_bound) in
+      let inc_stmt = Ast.VarAssignStmt (i, Ast.BinAppExpr (Plus, Ast.VarExpr i, Ast.IntExpr 1)) in
+
+      for_emit ctxt for_init_stmt loop_cond_expr inc_stmt body
+    | ForOverStmt _  -> ""
+        (*
+        let tensor = List.find (fun d -> String.equal d.Ast.data_name a) ctxt.ctxt_data_decls in
+        let num_dims = List.length tensor.data_dims in
+        let num_tiles = List.length ctxt.ctxt_tile_decls in
+
+        let data_size_expr =
+          List.fold_left
+            (fun size dim -> Ast.BinAppExpr (Mul, size, dim))
+            (Ast.IntExpr 1) tensor.data_dims in
+
+        let chunk_size_expr: Ast.expr = 
+          match num_dims with
+          | 1 -> Ast.BinAppExpr (Div, List.hd tensor.data_dims, IntExpr num_tiles)
+          | _ -> failwith (Error.unsupported_abstract_iteration num_dims) in
+
+        let start_ix_expr = 
+          let offset = 
+            match start_ix with 
+            | None -> Ast.IntExpr 0
+            | Some start -> start in
+          Ast.BinAppExpr (Plus, chunk_size_expr, BinAppExpr (Mul, offset, Ast.TileIdDerefExpr 0)) in
+
+        let start_ix_emit = expr_emit start_ix_expr in
+        let for_init_stmt = Ast.VarInitStmt (Ast.IntTyp, "i", Ast.IntExpr 0) in
+        let loop_cond_expr = Ast.BinAppExpr (Ast.Lt, Ast.VarExpr "i", chunk_size_expr) in
+        let inc_stmt = Ast.VarAssignStmt ("i", Ast.BinAppExpr (Plus, Ast.VarExpr "i", Ast.IntExpr 1)) in
+        for_emit for_init_stmt loop_cond_expr inc_stmt body
+        *)
     | PrintStmt str -> "printf(\"%s\", " ^ str ^ ");"
     | BsgFinishStmt -> "bsg_finish();"
 
@@ -77,17 +124,27 @@ and inout_dir_emit (dir : Ast.inout_dir) : string =
   | In -> "hb_mc_memcpy_to_device"
   | Out -> "hb_mc_memcpy_to_host"
 
-and for_emit (loop_var : string) (lower_bound : Ast.expr) (upper_bound : Ast.expr) (loop_body : string) =
-  "for(int %s = %s; %s < %s; %s++) {\n%s\n}" #% 
-    loop_var (expr_emit lower_bound) loop_var (expr_emit upper_bound) loop_var (indent 1 loop_body)
+and for_emit (ctxt : stmt_ctxt) 
+             (for_init : Ast.stmt) 
+             (loop_cond : Ast.expr) 
+             (inc_stmt : Ast.stmt) 
+             (loop_body : Ast.stmt) : string =
+  let for_init_emit = stmt_emit ctxt for_init in
+  let loop_cond_emit = expr_emit loop_cond in
+  (* Strip semicolon at the end *)
+  let inc_stmt_emit = 
+    stmt_emit ctxt inc_stmt 
+    |> fun s -> String.sub s 0 (String.length s - 1) in
+  let loop_body_emit = indent 1 (stmt_emit ctxt loop_body) in
+  "for(%s %s; %s) {\n%s\n}" #% for_init_emit loop_cond_emit inc_stmt_emit loop_body_emit
 
 (* a[e1]..[en] *)
 and deref_emit (a : string) (dims : Ast.expr list) : string = 
   a ^ dims_emit dims
 
 (* [e1]..[en] *)
-and dims_emit (ds : Ast.expr list) : string = 
-    List.map expr_emit ds |>
+and dims_emit (ctxt : Ast.expr list) : string = 
+    List.map expr_emit ctxt |>
     List.map ((#%) "[%s]") |>
     String.concat ""
 
@@ -96,9 +153,9 @@ and dims_product_emit (dims : Ast.expr list) : string =
   |> List.map expr_emit
   |> String.concat " * "
 
-and guarded_stmt_emit (gs : Ast.expr * Ast.stmt) : string =
+and guarded_stmt_emit (ctxt : stmt_ctxt) (gs : Ast.expr * Ast.stmt) : string =
   let (e, s) = gs in
-  "(%s)\n{%s\n}" #% (expr_emit e) (stmt_emit s)
+  "(%s)\n{%s\n}" #% (expr_emit e) (stmt_emit ctxt s)
 
 and var_init_emit (typ : Ast.typ) (x : string) (e : Ast.expr) : string = 
   "%s %s = %s;" #% (type_emit typ) x (expr_emit e)

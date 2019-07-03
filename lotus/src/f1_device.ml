@@ -52,28 +52,6 @@ let emit (prog : Ast.program) (filename : string) : string =
       |> (@) [("tile_id", "__bsg_id")]
       |> List.map (fun p -> let (x, v) = p in Core_emit.expr_macro_emit x v) in
 
-    (*
-    let target_section_constants : string list = 
-      match ts with
-      | [] -> []
-      | targ::targs ->
-          if List.length targs >= 1
-            then failwith Error.unsupported_many_tile_groups_error
-            else
-              match targ with
-              | GlobalMemDecl _ -> []
-              | TileDecl tile ->
-                if List.length tile.tile_dims != 2
-                  then failwith Error.only_two_dims_error
-                  else 
-                    List.map 
-                     (fun i -> 
-                       let var = if i == 0 then "xmax" else "ymax" in
-                       constant_emit 
-                        (IntTyp, var, List.nth tile.tile_dims i)) 
-                     [0; 1] in
-    *)
-
     let completion_barrier_setup : string =
       let macros =
         [("BSG_TILE_GROUP_X_DIM", "bsg_tiles_X");
@@ -95,29 +73,19 @@ let emit (prog : Ast.program) (filename : string) : string =
      completion_barrier_setup]
     |> String.concat "\n\n" in
 
-  (* Global declaration of inout data arrays *)
-  (*
-  let array_decls_emit (ds : Ast.data_section) : string =
-    let array_decl_emit (decl : Ast.data_decl) : string = 
-      Core_emit.array_decl_emit 
-        decl.Ast.data_type 
-        decl.data_name 
-        decl.Ast.data_dims in
-    List.map array_decl_emit ds.ds_data_decls
-    |> String.concat "\n" in
-  *)
+  let fun_def_emit (fun_name : string) (prog : Ast.program) (cb : Ast.code_block_decl) : string =
+    let ds = prog.data_section in
 
-  let fun_def_emit (fun_name : string) (ds : Ast.data_decl list) (cb : Ast.code_block_decl) : string =
     let ret_type =
       let output_arrays = 
-        List.filter (fun d -> d.Ast.data_dir == Ast.Out) ds in
+        List.filter (fun d -> d.Ast.data_dir == Ast.Out) ds.Ast.ds_data_decls in
 
-      if List.length output_arrays < 1 
+      if List.length output_arrays == 0
         then failwith Error.no_output_array
         else Core_emit.type_emit (List.hd output_arrays).Ast.data_type in
 
     let params = 
-      (ds
+      (ds.Ast.ds_data_decls
        |> List.map 
             (fun d -> 
               ("*" ^ d.Ast.data_name, 
@@ -125,7 +93,8 @@ let emit (prog : Ast.program) (filename : string) : string =
       ) in
 
     let body = 
-      let code_body = Core_emit.stmt_emit cb.Ast.cb_code in
+      let ctxt = Core_emit.build_stmt_ctxt prog in
+      let code_body = Core_emit.stmt_emit ctxt cb.Ast.cb_code in
       let barrier_completion = Core_emit.unindent
         "// Barrier to signal completion.
         bsg_tile_group_barrier(&r_barrier, &c_barrier);
@@ -148,6 +117,8 @@ let emit (prog : Ast.program) (filename : string) : string =
   constants_emit 
     prog.Ast.data_section prog.Ast.target_section ^
   "\n\n" ^
-  fun_def_emit filename prog.Ast.data_section.ds_data_decls (List.hd prog.Ast.code_section.cs_code_block_decls) ^
+  (match prog.Ast.code_section.cs_code_block_decls with
+   | [] -> ""
+   | cb::_-> fun_def_emit filename prog cb) ^
   "\n\n" ^
   main_def

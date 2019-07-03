@@ -15,6 +15,7 @@ open Ast
 %token AS
 %token GROUP
 %token AT
+%token OVER
 
 (* data section keywords *)
 %token DATA
@@ -29,7 +30,7 @@ open Ast
 
 (* code section keywords *)
 %token CODE
-
+%token EXTERN
 %token WHILE
 %token FOR
 %token ITERATOR
@@ -161,11 +162,8 @@ let ranges :=
       <>
 
 let range :=
-    | x = expr; 
-      { SingletonRange x }
-    | x = expr; COLON; y = expr;
-      { SliceRange (x, y) }
-
+    | e1 = expr?; COLON; e2 = expr?;
+    <>
 
 (* data section *)
 let data_section :=
@@ -212,10 +210,17 @@ let data_layout :=
 (* code section *)
 let code_section :=
     | CODE; LEFT_BRACE;
-      cs_constant_decls = constant_decl*; 
-      cs_code_block_decls = code_block_decl*; 
+      cs_constant_decls = constant_decl*;
+      cs_extern_fun_decls = extern_fun_decl*;
+      cs_code_block_decls = code_block_decl*;
       RIGHT_BRACE;
-      { {cs_constant_decls; cs_code_block_decls} }
+      { {cs_constant_decls; cs_extern_fun_decls; cs_code_block_decls} }
+
+let extern_fun_decl :=
+    | EXTERN; f_name = ID; 
+      params = parens(separated_list(COMMA, ~ = ID; ~ = typ; <>));
+      COLON; ret_typ = typ; SEMICOLON;
+      <>
 
 let constant_decl :=
   tau = typ; x = ID; EQ; e = expr; SEMICOLON; <>
@@ -275,9 +280,11 @@ let stmt :=
     | ~ = stmt_with_semi; SEMICOLON; <>
     
 let stmt_without_semi := 
-    | FOR; i = ID; IN; range = brackets(range);
-      body = braces(stmt );
-      < ForStmt >
+    | FOR; i = ID; OVER; a = ID; ~ = brackets(range);
+      body = braces(stmt);
+      < ForOverStmt >
+    | FOR; i = ID; IN; ~ = brackets(range); ~ = braces(stmt);
+      < ForInStmt >
 
 let stmt_with_semi := 
     | t = typ; x = ID; EQ; e = expr; 
