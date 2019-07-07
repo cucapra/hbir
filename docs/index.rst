@@ -1,11 +1,13 @@
 HammerBlade IR
 ==============
 
-HBIR is an intermediate representation / DSL for the
-HammerBlade Project that expresses the static and dynamic configuration
-of the target hardware as well as the high-level algorithm to be run.
-HBIR programs specify the hardware parameters of the target and how an
-algorithm should use the hardware.
+HBIR is a low-level programming language and compiler target for the
+HammerBlade reconfigurable manycore processor.
+Is core principle is *general abstraction for specialized machines:*
+HBIR itself makes very few assumptions about the hardware and instead offers a
+general substrate that can express a wide range of hardware configurations.
+An HBIR program jointly specifies the software algorithm itself, the
+configuration it runs on, and the physical hardware it targets.
 
 .. toctree::
    :maxdepth: 2
