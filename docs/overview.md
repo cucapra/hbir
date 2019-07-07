@@ -1,6 +1,26 @@
 Overview & Motivation
 =====================
 
+The ["new golden age"][ga] of splintering computer architectures presents a new set of challenges for compilers.
+Where today's compilers target fixed, slowly evolving ISAs,
+modern efficiency-oriented hardware changes rapidly to offer new domain-specific features and design parameter tuning with each release.
+By targeting a static, implementation-oblivious abstraction, compilers leave potential efficiency on the table.
+Instead, compilers need a generalized way to customize code for a specific generation of hardware.
+
+HBIR is a low-level hardware abstraction that differs from a traditional ISA by *exposing* hardware internals that ISAs are designed to hide.
+Its philosophy is to embrace the fact that members of the target hardware family will differ for different applications over time.
+To deal with hardware implementation details, a traditional ISA needs to either conceal them under a single virtual machine model or else bake a particular choice into the language semantics.
+Instead, HBIR can express low-level hardware details *in the language itself*.
+It offers a general way to describe the specific member of the hardware family that a program targets---or the range of hardware generations it supports.
+
+By making these hardware target details explicit, HBIR enables:
+
+- Portable compilers that can customize code for new hardware capabilities without modification.
+- Portable compiled programs that encode their assumptions about the range of supported hardware from the past and into the future.
+- An experimental platform for designing new hardware iterations and examining their impact on software performance.
+
+[ga]: https://cacm.acm.org/magazines/2019/2/234352-a-new-golden-age-for-computer-architecture/fulltext
+
 
 Target Architecture Model
 -------------------------
