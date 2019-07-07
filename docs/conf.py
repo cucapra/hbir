@@ -22,6 +22,13 @@ pygments_style = None
 
 # HTML output.
 html_theme = 'alabaster'
+html_theme_options = {
+    'description': 'A programming language & compiler target for '
+        'continuously reconfigurable machines.',
+    'extra_nav_links': {
+        'Source on GitHub': 'https://github.com/cucapra/hbir',
+    },
+}
 html_static_path = ['_static']
 html_css_files = ['style.css']
 
