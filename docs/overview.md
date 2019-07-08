@@ -42,6 +42,16 @@ Lotus, the HBIR compiler, emits C code to execute on the manycore and an accompa
 [risc-v]: https://riscv.org
 
 
+Design
+------
+
+An HBIR program consists of four *segments* that encompass the physical machine specification, a virtual configuration layer that abstracts the physical resources, and software---data and code---that runs on the configured virtual machine.
+
+[This section needs a little expansion, and probably a diagram.
+It's our chance to describe philosophically what's going on with each of the four segments, instead of specifically what the language looks like.
+Namely, we need to get across the idea that the `config` segment acts as an intermediator that completely abstracts away the machine specification in `target`.]
+
+
 Future Work
 -----------
 
