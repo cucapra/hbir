@@ -19,40 +19,27 @@ By making these hardware target details explicit, HBIR enables:
 - Portable compiled programs that encode their assumptions about the range of supported hardware from the past and into the future.
 - An experimental platform for designing new hardware iterations and examining their impact on software performance.
 
+The end goal is a more fluid relationship between hardware and software.
+Intermediated by HBIR, architecture generations can evolve more quickly while software toolchains can more easily harness their new capabilities.
+
 [ga]: https://cacm.acm.org/magazines/2019/2/234352-a-new-golden-age-for-computer-architecture/fulltext
 
 
-Target Architecture Model
--------------------------
+The Target Machine
+------------------
 
-At a high level, our target architecture is a many-core fabric with each
-tile having a small CGRA, small local memory, and a small CPU. Each tile
-can communicate with each other via remote memory access and also has
-access to a larger global memory. While still in its preliminary stages,
-the architecture attempts to close the gap between completely
-reconfigurable architectures (FPGA) and static accelerators (specialized
-accelerator ASICs) by allowing course-grain reconfiguration to represent
-three idealized architectures---massive manycores, vector, and dataflow---and also a wide range of combinations between them.
+The current realization of HBIR targets the HammerBlade manycore processor, which is a grid of simple [RISC-V][] cores.
+The manycore tiles have instruction caches but no data caches, and hence no coherence---instead, cores have a local data memory that acts as a scratchpad.
+There is an on-chip network that lets cores read and write remote scratchpads.
 
-A programmer targeting this architecture will write high-level
-applications using a wide-range of machine-learning and graph frameworks
-(such as TensorFlow, PyTorch, and Grappa) and then use our compiler
-tool-chain to target the architecture by configuring the tiles to a
-well-fit topology as well as generating code that the hardware can run.
-As the project is in it's early stages and lacks frontend support with
-actual frameworks currently; several attempts have been made to further
-programmability during the initial phase.
+The HBIR programming model primarily focuses on a SPMD style:
+the program describes similar code to run on collections of tiles.
+Each tile can use its index within a group to change the memory it computes on.
+This programming model is well suited to regular, dense data-intensive applications.
 
-The first approach to programming HammerBlade consists of writing C
-programs and using a library of low-level functions to handle inter-tile
-communication and configuration of the hardware. While this has been
-integral to verifying the hardware design, it requires an intimate
-knowledge of how inter-tile coordination should happen in the hardware
-in order to map to an application. As a solution, an intermediate
-representation that encapsulates both hardware configuration details and
-algorithmic details has been proposed. This document contains a
-specification of the intermediate language at its current state as well
-as an overview of where it should go in the future.
+Lotus, the HBIR compiler, emits C code to execute on the manycore and an accompanying host processor.
+
+[risc-v]: https://riscv.org
 
 
 Future Work
