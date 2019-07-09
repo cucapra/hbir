@@ -34,12 +34,19 @@ let emit (prog: Ast.program) (filename : string) : string =
       let (_, x, e) = const_decl in 
       Core_emit.expr_macro_emit x (Core_emit.expr_emit e) in
 
+    let tensor_size_emit : string =
+      ds.ds_data_decls
+      |> List.map (fun d -> (d.Ast.data_name ^ "_size", Core_emit.dims_product_emit d.Ast.data_dims))
+      |> List.map (fun d -> let (size_name, size_expr) = d in Core_emit.expr_macro_emit size_name size_expr)
+      |> String.concat "\n" in
+
     ["// Framework constants (aka, incantations)\n" ^
       framework_constants_emit;
       "// Tile Size Constants\n" ^
      (List.map tile_size_constants_emit ts |> String.concat "\n");
      "// Data Section Constants\n" ^
-     (List.map constant_decl_emit ds.ds_constant_decls |> String.concat "\n");]
+     (List.map constant_decl_emit ds.ds_constant_decls |> String.concat "\n");
+     tensor_size_emit]
     |> String.concat "\n\n" in
 
 
@@ -77,8 +84,8 @@ let emit (prog: Ast.program) (filename : string) : string =
         (*TODO: generalize hardcoded int32_t *)
         ds
         |> List.map (fun d ->
-             "hb_mc_device_malloc(&device, %s * sizeof(int32_t), &%s_addr)" #% 
-              (Core_emit.dims_product_emit d.Ast.data_dims) d.Ast.data_name)  
+             "hb_mc_device_malloc(&device, %s_size * sizeof(int32_t), &%s_addr)" #% 
+              d.Ast.data_name d.Ast.data_name)  
         |> error_cascade in
 
       [eva_init_comment;
@@ -89,14 +96,13 @@ let emit (prog: Ast.program) (filename : string) : string =
 
     let hb_mc_device_memcpy_emit (d : Ast.data_decl) : string =
       let name = d.Ast.data_name in
-      let size_expr_emit = Core_emit.dims_product_emit d.Ast.data_dims in
       let inout_dir_emit = Core_emit.inout_dir_emit d.Ast.data_dir in
 
       let eva_template s = "(void*)((intptr_t)%s_addr)" #% s in
       let memcpy_template dst src = 
         "hb_mc_device_memcpy(&device, %s,
-          \t\t%s, %s * sizeof(int32_t), %s)" 
-          #% dst src size_expr_emit inout_dir_emit in
+          \t\t%s, %s_size * sizeof(int32_t), %s)" 
+          #% dst src d.Ast.data_name inout_dir_emit in
 
       match d.Ast.data_dir with
       | In -> memcpy_template (eva_template name) name

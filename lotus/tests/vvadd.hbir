@@ -14,8 +14,6 @@ target{
 
 config{
   arrange t as {
-    group top_half at (0 : 2, 0 : 4);
-    group bot_half at (2 : 4, 0 : 4);
   }
 }
 
@@ -40,13 +38,7 @@ data{
 
 code {
   t.top_half {
-    for i in [0:10] {
-      C[i] = A[i] + B[i];
-    }
-  }
-
-  t.bot_half {
-    for i in [0:10] {
+    for i in [block_size_A * tile_id : block_size_A * (tile_id + 1)] {
       C[i] = A[i] + B[i];
     }
   }
