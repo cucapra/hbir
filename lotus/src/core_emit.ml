@@ -111,6 +111,9 @@ and expr_emit (e : Ast.expr) : string =
   | BinAppExpr (binop, e1, e2) -> 
       "(%s %s %s)" #%
          (expr_emit e1) (binop_emit binop) (expr_emit e2)
+  | FunAppExpr (f, es) ->
+      let args_emit = List.map expr_emit es |> String.concat ", " in
+      "%s(%s)" #% f args_emit
   end
 
 and type_emit (g : Ast.typ) : string =
@@ -167,6 +170,14 @@ let array_decl_emit (tau : Ast.typ) (x : string) (dims : Ast.expr list) =
   "%s %s%s;" #% 
     (type_emit tau) x (dims_emit dims)
 
+let fun_decl_emit (ret_typ : string)
+                  (f : string)
+                  (pars : (string * string) list) : string =
+  let pars_emit = 
+    List.map (fun p -> let (x, tau) = p in "%s %s" #% tau x) pars
+    |> String.concat ", " in
+  "%s %s(%s);" #% ret_typ f pars_emit
+  
 let fun_emit (ret_typ : string) 
              (f : string) 
              (pars : (string * string) list) 

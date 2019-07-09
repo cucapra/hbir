@@ -94,16 +94,39 @@ open Ast
 %%
 
 let main :=
-    | ~ = target_section; 
-      ~ = config_section; 
-      ~ = data_section; 
-      ~ = code_section; EOF; 
+    | TARGET; LEFT_BRACE;
+        target_section = targetDecl*;
+      RIGHT_BRACE;
+
+      CONFIG; LEFT_BRACE; 
+        config_section = top_level_decl*; 
+      RIGHT_BRACE;
+
+      DATA; LEFT_BRACE; 
+        ds_constant_decls = constant_decl*;
+        ds_data_decls = data_decl*;
+      RIGHT_BRACE;
+
+      CODE; LEFT_BRACE;
+        cs_constant_decls = constant_decl*;
+        cs_extern_fun_decls = extern_fun_decl*;
+        cs_code_block_decls = code_block_decl*;
+      RIGHT_BRACE;
+      EOF;
       {
-        { 
+        {
           target_section;
           config_section;
-          data_section;
-          code_section; }
+          data_section = {
+            ds_constant_decls;
+            ds_data_decls
+          };
+          code_section = {
+            cs_constant_decls;
+            cs_extern_fun_decls;
+            cs_code_block_decls
+          } 
+        }
       }
         
 
@@ -117,12 +140,6 @@ let nameLookup :=
       <>
 
 (* Target Section *)
-let target_section :=
-    | TARGET; LEFT_BRACE;
-      ts = targetDecl*;
-      RIGHT_BRACE;
-      <>
-
 let targetDecl :=
     | m = mem_decl; { GlobalMemDecl m }
     | t = tile_decl; { TileDecl t }
@@ -142,10 +159,6 @@ let tile_decl :=
 
 
 (* Config section *)
-let config_section :=
-    | CONFIG; LEFT_BRACE; ~ = top_level_decl*; RIGHT_BRACE;
-      <>
-
 let top_level_decl :=
     | ARRANGE; tile_group_name = ID; AS;
       LEFT_BRACE; group_decls = group_decl*; RIGHT_BRACE;
@@ -162,18 +175,10 @@ let ranges :=
       <>
 
 let range :=
-    | e1 = expr?; COLON; e2 = expr?;
-    <>
+    | e1 = expr?; COLON; e2 = expr?; <>
+    | e = expr; { (Some e, Some e) }
 
 (* data section *)
-let data_section :=
-    | DATA; 
-      LEFT_BRACE; 
-      ds_constant_decls = constant_decl*;
-      ds_data_decls = data_decl*;
-      RIGHT_BRACE;
-      { { ds_constant_decls; ds_data_decls} }
-
 let data_decl :=
     | ~ = data_dir; data_name = ID; COLON;
       data_type = typ; data_dims = dim*;
@@ -208,17 +213,9 @@ let data_layout :=
 
 
 (* code section *)
-let code_section :=
-    | CODE; LEFT_BRACE;
-      cs_constant_decls = constant_decl*;
-      cs_extern_fun_decls = extern_fun_decl*;
-      cs_code_block_decls = code_block_decl*;
-      RIGHT_BRACE;
-      { {cs_constant_decls; cs_extern_fun_decls; cs_code_block_decls} }
-
 let extern_fun_decl :=
     | EXTERN; f_name = ID; 
-      params = parens(separated_list(COMMA, ~ = ID; ~ = typ; <>));
+      params = parens(separated_list(COMMA, ~ = ID; COLON; ~ = typ; <>));
       COLON; ret_typ = typ; SEMICOLON;
       <>
 
@@ -226,7 +223,7 @@ let constant_decl :=
   tau = typ; x = ID; EQ; e = expr; SEMICOLON; <>
 
 let code_block_decl :=
-    | cb_group_name = nameLookup; 
+    | cb_group_name = nameLookup;
       LEFT_BRACE; cb_code = stmt; RIGHT_BRACE;
         { {cb_group_name; cb_code} }
 
@@ -262,6 +259,10 @@ let expr :=
     | ~ = binapp(GTE; { Gteq }); <>
     | ~ = binapp(AND; { And }); <>
     | ~ = binapp(OR; { Or }); <>
+    | f = ID; 
+      es = parens(separated_list(COMMA, expr)); 
+      < FunAppExpr >
+      
     | ~ = ID; < VarExpr >
     | ~ = parens(expr); <>
 
@@ -290,7 +291,7 @@ let stmt_with_semi :=
     | t = typ; x = ID; EQ; e = expr; 
       < VarInitStmt >
     | a = ID; coord = brackets(expr)*; EQ; e = expr;
-      <ArrayAssignStmt >
+      < ArrayAssignStmt > 
       (*
     | x = ID; EQ; e = expr;
       < VarAssignStmt >

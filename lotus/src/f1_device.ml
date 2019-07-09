@@ -1,6 +1,7 @@
 (* Compiles F1 Device Program *)
 let emit (prog : Ast.program) (filename : string) : string =
-  (* 1. Header *)
+
+  (* 1. headers *)
   let device_header_emit = 
     ["\"bsg_manycore.h\""; 
      "\"bsg_set_tile_x_y.h\"";
@@ -12,8 +13,7 @@ let emit (prog : Ast.program) (filename : string) : string =
   (* 2. constants from: 
     * data section 
     * target section (e.g., xmax)
-    * TODO: replace target section with config section 
-    *       when groups are implemented*)
+    *)
   let constants_emit (ds : Ast.data_section) 
                      (ts : Ast.target_section) : string =
     let constant_emit (decl : Ast.typ * string * Ast.expr) : string =
@@ -73,6 +73,16 @@ let emit (prog : Ast.program) (filename : string) : string =
      completion_barrier_setup]
     |> String.concat "\n\n" in
 
+  let extern_fun_decls (fs : Ast.fun_decl list) : string = 
+    fs
+    |> List.map (fun f ->
+      let (f_name, ps, ret_typ) = f in
+      let ps_emit = 
+        List.map (fun p -> let (x, tau) = p in (x, Core_emit.type_emit tau))
+        ps in
+      Core_emit.fun_decl_emit (Core_emit.type_emit ret_typ) f_name ps_emit)
+    |> String.concat "\n" in
+
   let fun_def_emit (fun_name : string) (prog : Ast.program) (cb : Ast.code_block_decl) : string =
     let ds = prog.data_section in
 
@@ -112,13 +122,10 @@ let emit (prog : Ast.program) (filename : string) : string =
     Core_emit.fun_emit "int" "main" [] body in
 
 
-  device_header_emit ^
-  "\n\n" ^
-  constants_emit 
-    prog.Ast.data_section prog.Ast.target_section ^
-  "\n\n" ^
-  (match prog.Ast.code_section.cs_code_block_decls with
-   | [] -> ""
-   | cb::_-> fun_def_emit filename prog cb) ^
-  "\n\n" ^
-  main_def
+  [device_header_emit;
+   constants_emit prog.Ast.data_section prog.Ast.target_section;
+   extern_fun_decls prog.Ast.code_section.cs_extern_fun_decls;
+   List.map (fun cb -> fun_def_emit filename prog cb) prog.Ast.code_section.cs_code_block_decls
+      |> String.concat "\n\n";
+   main_def]
+   |> String.concat "\n\n"
