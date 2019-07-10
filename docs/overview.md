@@ -14,6 +14,7 @@ There are two (bad) options for designing traditional ISAs in the era of rapidly
 - *Break the contract.*
   Every new generation of specialized hardware could come with a correspondingly new version of the ISA.
   Using *ad hoc* extensions and changes, the ISA would expose all the important hardware details to the compiler---at the expense of backwards compatibility.
+  If an ISA is a contract between hardware and software, every new generation of hardware would break the contract and offer a new one.
   This approach amounts to giving up on the idea of a long-lasting abstraction that persists across hardware generations, thereby foisting the responsibility for compatibility onto compiler writers.
 
 HBIR is a third option.
