@@ -4,16 +4,24 @@ Overview & Motivation
 The ["new golden age"][ga] of splintering computer architectures presents a new set of challenges for compilers.
 Where today's compilers target fixed, slowly evolving ISAs,
 modern efficiency-oriented hardware changes rapidly to offer new domain-specific features and design parameter tuning with each release.
-By targeting a static, implementation-oblivious abstraction, compilers leave potential efficiency on the table.
-Instead, compilers need a generalized way to customize code for a specific generation of hardware.
+This pace of hardware innovation is fundamentally mismatched to the traditional conception of an ISA as a stable, backwards-compatible abstraction.
+There are two (bad) options for designing traditional ISAs in the era of rapidly changing, domain-specific hardware:
 
-HBIR is a low-level hardware abstraction that differs from a traditional ISA by *exposing* hardware internals that ISAs are designed to hide.
-Its philosophy is to embrace the fact that members of the target hardware family will differ for different applications over time.
-To deal with hardware implementation details, a traditional ISA needs to either conceal them under a single virtual machine model or else bake a particular choice into the language semantics.
-Instead, HBIR can express low-level hardware details *in the language itself*.
-It offers a general way to describe the specific member of the hardware family that a program targets---or the range of hardware generations it supports.
+- *Hide the changes.*
+  A traditional ISA could try to fully abstract the differences in the underlying hardware models and to offer transparent, automatic efficiency benefits to existing software.
+  While it would be convenient, full abstraction is probably impossible---it would require anticipating all possible hardware features in advance.
+  And it would prevent higher-level programming languages and compilers from providing target-aware optimizations that rely on specific hardware details.
+- *Break the contract.*
+  Every new generation of specialized hardware could come with a correspondingly new version of the ISA.
+  Using *ad hoc* extensions and changes, the ISA would expose all the important hardware details to the compiler---at the expense of backwards compatibility.
+  This approach amounts to giving up on the idea of a long-lasting abstraction that persists across hardware generations, thereby foisting the responsibility for compatibility onto compiler writers.
 
-By making these hardware target details explicit, HBIR enables:
+HBIR is a third option.
+It acts as a *meta-ISA*, providing a consistent framework that unifies the members of a family of similar---but specialized---hardware.
+Each member of the hardware family gets its on specialized ISA, but instead of specifying the differences in an *ad hoc* way, the details of a specific machine are specified in an HBIR program.
+Using HBIR, higher-level software and toolchains can use HBIR as a systematic, consistent way to interact with specialized hardware.
+
+By making the hardware target details explicit in a programming language, HBIR enables:
 
 - Portable compilers that can customize code for new hardware capabilities without modification.
 - Portable compiled programs that encode their assumptions about the range of supported hardware from the past and into the future.
