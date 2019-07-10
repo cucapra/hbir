@@ -46,7 +46,10 @@ the program describes similar code to run on collections of tiles.
 Each tile can use its index within a group to change the memory it computes on.
 This programming model is well suited to regular, dense data-intensive applications.
 
-Lotus, the HBIR compiler, emits C code to execute on the manycore and an accompanying host processor.
+We have a prototype compiler for HBIR, called Lotus.
+It takes in an HBIR program and emits C code to execute on the manycore and an accompanying host processor.
+The HBIR program describes the size, shape, and capabilities of the HammerBlade hardware instance it targets.
+The generated C code is specialized to target this particular machine instance.
 
 [risc-v]: https://riscv.org
 
