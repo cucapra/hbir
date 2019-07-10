@@ -1,10 +1,19 @@
-let emit (prog: Ast.program) : string = 
-  let header_emit : string = 
-    ["\"f1_helper.h\""; "<stdlib.h>"]
+let emit (prog: Ast.program) (filename : string) : string =
+  let header_emit : string =
+    ["<bsg_manycore_cuda.h>"; "<stdio.h>"; "<stdlib.h>"]
     |> List.map Core_emit.header_emit
     |> String.concat "\n"  in
 
-  let global_constants_emit (ts : Ast.target_section) (ds : Ast.data_section) : string = 
+  let global_constants_emit (ts : Ast.target_section) (ds : Ast.data_section) : string =
+
+    let framework_constants_emit : string =
+      [("_BSD_SOURCE", "");
+       ("_XOPEN_SOURCE", "500");]
+      |> List.map
+         (fun decl -> 
+           let (x, e) = decl in 
+           Core_emit.expr_macro_emit x e)
+      |> String.concat "\n" in
 
     let tile_size_constants_emit (td : Ast.target_decl) : string =
       match td with
@@ -13,10 +22,8 @@ let emit (prog: Ast.program) : string =
         if List.length tile.tile_dims != 2
           then failwith Error.only_two_dims_error
           else
-            [("X1", Ast.IntExpr 0);
-             ("X2", List.nth tile.tile_dims 0);
-             ("Y1", Ast.IntExpr 0);
-             ("Y2", List.nth tile.tile_dims 1)]
+            [("MESH_X", List.nth tile.tile_dims 0 |> Core_emit.expr_emit);
+             ("MESH_Y", List.nth tile.tile_dims 1 |> Core_emit.expr_emit);]
             |> List.map
                (fun decl -> 
                  let (x, e) = decl in 
@@ -24,62 +31,174 @@ let emit (prog: Ast.program) : string =
             |> String.concat "\n" in
 
     let constant_decl_emit (const_decl : Ast.typ * string * Ast.expr) =
-      let (typ, x, e) = const_decl in 
-      Core_emit.var_init_emit typ x e in
+      let (_, x, e) = const_decl in 
+      Core_emit.expr_macro_emit x (Core_emit.expr_emit e) in
 
-    ["// Tile Size Constants\n" ^
+    let tensor_size_emit : string =
+      ds.ds_data_decls
+      |> List.map (fun d -> (d.Ast.data_name ^ "_size", Core_emit.dims_product_emit d.Ast.data_dims))
+      |> List.map (fun d -> let (size_name, size_expr) = d in Core_emit.expr_macro_emit size_name size_expr)
+      |> String.concat "\n" in
+
+    ["// Framework constants (aka, incantations)\n" ^
+      framework_constants_emit;
+      "// Tile Size Constants\n" ^
      (List.map tile_size_constants_emit ts |> String.concat "\n");
      "// Data Section Constants\n" ^
-     (List.map constant_decl_emit ds.ds_constant_decls |> String.concat "\n");]
+     (List.map constant_decl_emit ds.ds_constant_decls |> String.concat "\n");
+     tensor_size_emit]
     |> String.concat "\n\n" in
 
 
-  let main_def_emit (ds : Ast.data_section) : string =
-    let layout_emit (d : Ast.data_decl) : string =
-      match d.data_layout with
-      | Blocked -> 
-          [Core_emit.host_blocked_layout_init_emit d.data_name d.data_dims;
-           Core_emit.host_blocked_layout_send_emit 
-            d.data_name d.data_type d.data_dir] |> String.concat "\n\n"
-      | _ -> failwith Error.unsupported_layout_error in
+    let (#%) = Core_emit.(#%) in
 
-    let array_decl_emit (d : Ast.data_decl) : string =
-      Core_emit.dynamic_alloc_array_emit d.data_type d.data_name d.data_dims in
+    let error_cascade (ds : string list) : string =
+      match ds with 
+      | [] -> ""
+      | x::xs -> 
+          ("err  = %s;" #% x) ::
+          (List.map (fun s -> "err |= %s;" #% s) xs)
+          |> String.concat "\n" in
 
-    let array_decls : string = 
-     "// Array Declarations\n" ^
-     (List.map array_decl_emit ds.ds_data_decls |> String.concat "\n") in
+    let error_check_emit (err : string) : string =
+      let if_emit cond body = 
+        "if(%s){\n%s\n}" #% cond (Core_emit.indent 1 body) in
+      if_emit "err"
+        ("fprintf(stderr, \"%s\"); 
+          return err;" #% err
+         |> Core_emit.unindent) in
 
-    let input_array_layouts : string = 
-      ds.Ast.ds_data_decls
-      |> List.filter (fun d -> d.Ast.data_dir == Ast.In) 
-      |> List.map layout_emit
-      |> String.concat "\n\n" in
+  let do_fun_def_emit (fun_name : string) (ds : Ast.data_decl list) : string =
+    let eva_init_emit : string =
+      let eva_init_comment : string = Core_emit.unindent
+        "// Allocate space on the device for the three arguments we'll pass to the
+         // function. \"EVA\" is for \"endpoint virtual address,\" and it represents
+         // an address in the device's memory." in
 
-    let output_array_layouts : string = 
-      ds.Ast.ds_data_decls
-      |> List.filter (fun d -> d.Ast.data_dir == Ast.Out) 
-      |> List.map layout_emit
-      |> String.concat "\n\n" in
+      let eva_decls : string =
+        "eva_t %s;" #% (ds
+          |> List.map (fun d -> (d.Ast.data_name ^ "_addr"))
+          |> String.concat ", ") in
 
-    let execute_blocks_emit =
-      Core_emit.host_execute_code_blocks_emit in
+      let eva_dyn_init : string =
+        (*TODO: generalize hardcoded int32_t *)
+        ds
+        |> List.map (fun d ->
+             "hb_mc_device_malloc(&device, %s_size * sizeof(int32_t), &%s_addr)" #% 
+              d.Ast.data_name d.Ast.data_name)  
+        |> error_cascade in
 
-    let return_emit = Core_emit.return_emit (Ast.IntExpr 0) in
+      [eva_init_comment;
+       eva_decls; 
+       eva_dyn_init;
+       error_check_emit "hb_mc_device_malloc failed"]
+      |> String.concat "\n" in
 
-    Core_emit.fun_emit "int" "main" [("argc", "int"); ("*argv[]", "char")]
-      ([Core_emit.host_main_init_emit;
-       array_decls;
-       input_array_layouts;
-       execute_blocks_emit;
-       output_array_layouts;
-       return_emit;]
+    let hb_mc_device_memcpy_emit (d : Ast.data_decl) : string =
+      let name = d.Ast.data_name in
+      let inout_dir_emit = Core_emit.inout_dir_emit d.Ast.data_dir in
+
+      let eva_template s = "(void*)((intptr_t)%s_addr)" #% s in
+      let memcpy_template dst src = 
+        "hb_mc_device_memcpy(&device, %s,
+          \t\t%s, %s_size * sizeof(int32_t), %s)" 
+          #% dst src d.Ast.data_name inout_dir_emit in
+
+      match d.Ast.data_dir with
+      | In -> memcpy_template (eva_template name) name
+      | Out -> memcpy_template name (eva_template name) in
+
+    let input_send_emit : string =
+      let input_send_comment : string = Core_emit.unindent
+        "// Copy input data into the newly allocated space.
+        // TK Why does the `eva_t` need to be converted to a `void*` here?
+        // Shouldn't this function take an `eva_t` as an argument?" in
+
+      let input_send_memcpy_emit : string =
+        ds
+        |> List.filter (fun d -> d.Ast.data_dir == Ast.In)
+        |> List.map hb_mc_device_memcpy_emit
+        |> error_cascade in
+
+      let grid_init_emit : string =
+        let grid_init_args_comment : string = Core_emit.unindent
+          "// The arguments to pass to the device-side function. While the type here
+          // is uint32_t, these are all actually pointers---arguments must be
+          // word-sized numbers." in
+
+        let grid_init_comment : string = Core_emit.unindent
+          "// Set up the tile group, dimensions, and function to call. The last two
+          // arguments to `hb_mc_grid_init` specify the arguments to the `add`
+          // function in the device code." in
+
+        let grid_init_args_emit : string =
+          "uint32_t args[] = {%s};" #%
+            (ds
+             |> List.map (fun d -> d.Ast.data_name ^ "_addr")
+             |> String.concat ", ") in
+
+        (* TODO: what does 'grid_dim' mean?*)
+        grid_init_args_comment ^ "\n" ^
+        grid_init_args_emit ^ "\n\n" ^
+        grid_init_comment ^ "\n" ^
+        "hb_mc_dimension_t grid_dim = {.x = 1, .y = 1};
+        hb_mc_dimension_t tg_dim = {.x = MESH_X, .y = MESH_Y};
+        err = hb_mc_grid_init(&device, grid_dim, tg_dim, \"%s\", %s, args);
+        if (err) return err;" #% fun_name (List.length ds |> string_of_int) 
+        |> Core_emit.unindent in
+
+      [input_send_comment;
+       input_send_memcpy_emit;
+       error_check_emit "hb_mc_memcpy to device failed" ^ "\n";
+       grid_init_emit]
+      |> String.concat "\n" in
+
+    let run_function_emit : string =
+      "// Run the function.
+      err = hb_mc_device_tile_groups_execute(&device);
+      if (err) return err;" |> Core_emit.unindent in
+
+    let output_receive_emit : string =
+      let output_receive_comment : string = Core_emit.unindent
+        "// Collect the result by copying \
+        output data back over from the device." in
+
+      let output_receive_memcpy_emit : string =
+        ds
+        |> List.filter (fun d -> d.Ast.data_dir == Ast.Out)
+        |> List.map hb_mc_device_memcpy_emit
+        |> error_cascade in
+
+      [output_receive_comment;
+       output_receive_memcpy_emit;
+       error_check_emit "hb_mc_device_memcpy to host failed"]
+      |> String.concat "\n" in
+
+    let cleanup_emit : string = 
+      let cleanup_comment = "// Clean up." in
+      cleanup_comment ^ "\n" ^
+      Core_emit.return_emit (Ast.IntExpr 0) in
+  
+    (* TODO: 32_t in type? *)
+    let params : (string * string) list =
+      ds
+      |> List.map (fun d -> 
+          ("*" ^ d.Ast.data_name, 
+           (Core_emit.type_emit d.Ast.data_type) ^ "32_t")) in
+
+    Core_emit.fun_emit "int" ("do_" ^ fun_name) params
+      ([Core_emit.host_fun_init_emit fun_name;
+       eva_init_emit;
+       input_send_emit;
+       run_function_emit;
+       output_receive_emit;
+       cleanup_emit;]
       |> String.concat "\n\n") in
-
-  header_emit ^ 
-  "\n\n" ^
 
   global_constants_emit prog.Ast.target_section prog.Ast.data_section ^
   "\n\n" ^
 
-  main_def_emit prog.Ast.data_section
+  header_emit ^ 
+  "\n\n" ^
+
+  do_fun_def_emit filename prog.Ast.data_section.ds_data_decls

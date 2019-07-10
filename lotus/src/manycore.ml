@@ -16,40 +16,6 @@ main.riscv: $(OBJECT_FILES) $(SPMD_COMMON_OBJECTS) ../common/crt.o
 main.o: Makefile\n
 include ../../mk/Makefile.tail_rules"
 
-let typ_emit (g : typ) : string =
-    match g with
-    | BoolTyp -> "boolean"
-    | IntTyp -> "int"
-    | FloatTyp -> "float"
-
-let rec expr_emit (e : expr) : string =
-  let emit_from_binop (binop : binop) : string =
-    match binop with
-        | Plus -> "+"
-        | Minus -> "-"
-        | Mul -> "*"
-        | Div -> "/"
-        | Eq -> "=="
-        | Neq -> "!="
-        | Lt -> "<"
-        | Gt -> ">"
-        | Lteq -> "<="
-        | Gteq -> ">="
-        | And -> "&&"
-        | Or -> "||" in
-
-    match e with
-    | VarExpr str -> str
-    | IntExpr v -> string_of_int v
-    | FloatExpr v -> string_of_float v
-    | BoolExpr b -> if b then "true" else "false"
-    | DerefExpr (e, es) -> 
-        let dims = 
-          List.fold_left (fun s e -> "%s[%s]" #% s (expr_emit e)) "" es in
-          (expr_emit e) ^ dims
-    | BinAppExpr (binop, e1, e2) -> 
-        "%s %s %s" #% (expr_emit e1) (emit_from_binop binop) (expr_emit e2)
-
 (*
 (* synthesize an access pattern based on the user specified data layout *)
 and convert_inferred_iter (iter : inferred_iterator): string =
@@ -214,18 +180,4 @@ let convert_ast (_: program) : string = ""
             "int main() {\n" ^ "bsg_set_tile_x_y();\n" ^ "int tile_id = bsg_x_y_to_id(bsg_x, bsg_y);\n" ^
             (convert_codelist cl) ^ "bsg_wait_while(1);\n" ^ "\n}"
 *)
-let generate_makefile (prog : program) : string =
-    match prog.target_section with
-    | [] -> ""
-    | GlobalMemDecl _ :: _ -> ""
-    | TileDecl tile :: _ ->
-        (
-          if List.length tile.tile_dims >= 2
-            then
-              (
-                "bsg_tiles_X = " ^ (expr_emit (List.nth tile.tile_dims 0)) ^
-                "\nbsg_tiles_Y = " ^ (expr_emit (List.nth tile.tile_dims 1))
-              )
-            else ""
-        )
-        ^ "\n" ^ makefile
+let generate_makefile (_ : program) : string =""

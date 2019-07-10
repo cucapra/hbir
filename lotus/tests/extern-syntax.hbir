@@ -1,0 +1,38 @@
+target{
+  tile t[1][1] {
+    memory g[10] {
+      size : 8,
+      width : 8
+    }
+  }
+}
+config{
+  arrange t as {
+    group foo at (0, 0);
+  }
+}
+data{
+  int n = 1;
+
+  in A : int[n] {
+    location : t.g,
+    layout : block
+  }
+
+  in B : int[n] {
+    location : t.g,
+    layout : block
+  }
+
+  out C : int[n] {
+    location : t.g,
+    layout : block
+  }
+}
+code{
+  extern f(x:int, y:int) : int;
+  
+  t.foo {
+    C[0] = f(A[0], B[0]);
+  }
+}
