@@ -20,7 +20,7 @@ There are two (bad) options for designing traditional ISAs in the era of rapidly
 HBIR is a third option.
 It acts as a *meta-ISA*, providing a consistent framework that unifies the members of a family of similar---but specialized---hardware.
 Each member of the hardware family gets its on specialized ISA, but instead of specifying the differences in an *ad hoc* way, the details of a specific machine are specified in an HBIR program.
-Using HBIR, higher-level software and toolchains can use HBIR as a systematic, consistent way to interact with specialized hardware.
+Higher-level software and toolchains can use HBIR as a systematic, consistent way to interact with specialized hardware.
 
 By making the hardware target details explicit in a programming language, HBIR enables:
 
