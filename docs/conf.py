@@ -23,6 +23,7 @@ pygments_style = None
 # HTML output.
 html_theme = 'alabaster'
 html_theme_options = {
+    'logo': 'hbir.png',
     'description': 'A programming language & compiler target for '
         'continuously reconfigurable machines.',
     'extra_nav_links': {
