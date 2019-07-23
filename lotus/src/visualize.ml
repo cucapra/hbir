@@ -8,6 +8,11 @@ type group = {
   sub_groups : group list;
 }
 
+type tile_arrangement = {
+  arr_size : int * int;
+  arr_groups : group list;
+}
+
 let generate_arrangement_image (_: Ast.program) : unit =
 
   let write_image (r_image : Vgr.renderable) : unit =
@@ -77,40 +82,46 @@ let generate_arrangement_image (_: Ast.program) : unit =
     build_grid (rows-1) (cols-1) I.void in
 
 
-  let rec draw_group (parent_size : int * int) (g : group) : Vg.image =
-    let group_img : Vg.image =
-      let parent_rows, _ = parent_size in
+  let draw_arrangement (arr : tile_arrangement) : Vg.image =
+    let base_img : Vg.image = 
+      draw_tile_grid arr.arr_size (0, 0) Color.void in
 
-      let group_rows, _ = g.group_size in
-      let row_start, col_start = g.group_origin in
+    let rec draw_group (parent_size : int * int)
+                       (g : group) : Vg.image =
+      let group_img : Vg.image =
+        let parent_rows, _ = parent_size in
 
-      let x_pos = float (col_start) in
-      let y_pos = float (parent_rows - group_rows - row_start) in
+        let group_rows, _ = g.group_size in
+        let row_start, col_start = g.group_origin in
 
-      draw_tile_grid g.group_size g.group_origin g.group_color
-      |> I.move (V2.v x_pos y_pos) in
+        let x_pos = float (col_start) in
+        let y_pos = float (parent_rows - group_rows - row_start) in
 
-    List.map (draw_group parent_size) g.sub_groups
-    |> List.fold_left I.blend group_img in
+        draw_tile_grid g.group_size g.group_origin g.group_color
+        |> I.move (V2.v x_pos y_pos) in
 
-  let faint_blue = Color.v 0. 0. 1. 0.2 in
-  let faint_green = Color.v 0. 1. 0. 0.2 in
-  let _ = faint_blue in
-  let faint_gray = Color.gray ~a:0.1 0.5 in
-  let test_group = {group_size = (4, 4);
-                    group_origin = (0, 0);
-                    group_color = faint_gray;
-                    sub_groups = [
-                      { group_size = (2, 4);
-                        group_origin = (0, 0);
-                        group_color = faint_blue;
-                        sub_groups = [] };
-                      { group_size = (2, 4);
-                        group_origin = (2, 0);
-                        group_color = faint_green;
-                        sub_groups = [] }
-                    ]} in
+      List.map (draw_group g.group_size) g.sub_groups
+      |> List.fold_left I.blend group_img in
 
-  write_image (Size2.v 200. 200., Box2.v (V2.v 0. 0.) (Size2.v 4. 4.), draw_group (4, 4) test_group)
+    List.map (draw_group arr.arr_size) arr.arr_groups
+    |> List.fold_left I.blend base_img in
+
+
+  let test_arrangement = 
+    let faint_blue = Color.v 0. 0. 1. 0.2 in
+    let faint_green = Color.v 0. 1. 0. 0.2 in
+    {arr_size = (4, 4);
+     arr_groups = [
+       { group_size = (2, 4);
+         group_origin = (0, 0);
+         group_color = faint_blue;
+         sub_groups = [] };
+       { group_size = (2, 4);
+         group_origin = (2, 0);
+         group_color = faint_green;
+         sub_groups = [] }
+     ]} in
+
+  write_image (Size2.v 200. 200., Box2.v (V2.v 0. 0.) (Size2.v 4. 4.), draw_arrangement test_arrangement)
 
 

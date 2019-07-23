@@ -99,7 +99,7 @@ let main :=
       RIGHT_BRACE;
 
       CONFIG; LEFT_BRACE; 
-        config_section = top_level_decl*; 
+        config_section = tile_arrangement*; 
       RIGHT_BRACE;
 
       DATA; LEFT_BRACE; 
@@ -131,13 +131,20 @@ let main :=
         
 
 (* Utility Non-Terminals*)
-let dim ==
-    | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET;
-      <>
+let parens(x) := 
+    | LEFT_PAREN; x = x; RIGHT_PAREN; <>
+
+let braces(x) :=
+    | LEFT_BRACE; x = x; RIGHT_BRACE; <>
+
+let brackets(x) :=
+    | LEFT_BRACKET; x = x; RIGHT_BRACKET; <>
+
+let dim :=
+    | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET; <>
 
 let nameLookup :=
-    | ~ = separated_nonempty_list(DOT; {}, ~ = ID; <>);
-      <>
+    | ~ = separated_nonempty_list(DOT; {}, ~ = ID; <>); <>
 
 (* Target Section *)
 let targetDecl :=
@@ -159,20 +166,24 @@ let tile_decl :=
 
 
 (* Config section *)
-let top_level_decl :=
+let tile_arrangement :=
     | ARRANGE; tile_group_name = ID; AS;
       LEFT_BRACE; group_decls = group_decl*; RIGHT_BRACE;
       { {tile_group_name; group_decls} }
 
-let group_decl :=
-    | GROUP; group_name = ID; AT; ~ = ranges; SEMICOLON;
-      { {group_name; ranges; sub_groups = [] } }
+let grouping :=
+    | GROUP; group_name = ID; group_dims = group_dim*; AT;
+      parent_tile_range = parens(separated_nonempty_list(COMMA, range));
+    { {group_name; group_dims; parent_tile_range; } }
 
-let ranges :=
-    | LEFT_PAREN; 
-      ~ = separated_nonempty_list(COMMA; {}, ~ = range; <>);
-      RIGHT_PAREN;
-      <>
+let group_dim :=
+    | ~ = brackets(~ = ID; IN; ~ = range; <>); <>
+
+let group_decl :=
+    | ~ = grouping; SEMICOLON;
+      { {grouping; sub_groups = [] } }
+    | ~ = grouping; sub_groups = braces(group_decl*);
+      { {grouping; sub_groups; } }
 
 let range :=
     | e1 = expr?; COLON; e2 = expr?; <>
@@ -226,16 +237,6 @@ let code_block_decl :=
     | cb_group_name = nameLookup;
       LEFT_BRACE; cb_code = stmt; RIGHT_BRACE;
         { {cb_group_name; cb_code} }
-
-let parens(x) := 
-    | LEFT_PAREN; x = x; RIGHT_PAREN;
-      <>
-
-let braces(x) :=
-    | LEFT_BRACE; x = x; RIGHT_BRACE; <>
-
-let brackets(x) :=
-    | LEFT_BRACKET; x = x; RIGHT_BRACKET; <>
 
 let binapp(binop) :=
     | e1 = expr; binop = binop; e2 = expr;
