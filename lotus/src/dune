@@ -4,4 +4,6 @@
 (ocamllex lexer)
 
 (library
-  (name lotuslib))
+  (name lotuslib)
+  (libraries vg vg.svg))
+

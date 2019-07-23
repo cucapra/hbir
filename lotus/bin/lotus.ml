@@ -30,7 +30,6 @@ let write_bsg (prog : program) : unit =
     print_endline (Manycore.generate_makefile prog)
 
 let run_f1 : bool ref = ref false
-let set_f1 () : unit = run_f1 := true
 let write_f1 (prog : program) (filename : string) : unit =
     let out_dir : string = "." in
     let _ = Sys.command ("mkdir -p " ^ out_dir) in
@@ -52,6 +51,9 @@ let set_pp () : unit = run_pp := true
 let run_v : bool ref = ref false
 let set_v () : unit = run_pp := true
 
+let run_visualize : bool ref = ref false
+let set_visualize () : unit = run_visualize := true
+
 let usage = "HBIR compiler\n"
 let spec : (Arg.key * Arg.spec * Arg.doc) list =
     [("-pp", Arg.Set run_pp,
@@ -62,6 +64,8 @@ let spec : (Arg.key * Arg.spec * Arg.doc) list =
     "Generates code and a Makefile that can be run on the Manycore RTL sim");
     ("-f1", Arg.Set run_f1,
         "Generates code and a Makefile that can be run on the F1 instance");
+    ("-visualize", Arg.Set run_visualize, 
+        "Generates an image representing the tile arrangement");
     (* where the data should come from *)
     ("-wrapper", Arg.Set run_f1_wrapper,
         "Give c function and header to be initiated from another file");
@@ -71,42 +75,51 @@ let spec : (Arg.key * Arg.spec * Arg.doc) list =
 
 let prog =
     Arg.parse spec set_program_file usage;
-        match !program_file with
-        None -> print_string (Arg.usage_string spec usage) | Some f ->
-    let ch =
+    match !program_file with
+    | None -> print_string (Arg.usage_string spec usage) 
+    | Some f ->
+      let ch =
         try open_in f
         with Sys_error s -> failwith ("Cannot open file: " ^ s) in
-    let prog : program =
-        let lexbuf = Lexing.from_channel ch in
-        try
-            Parser.main Lexer.token lexbuf
-        with
-            | _ ->
+        let prog : program =
+          let lexbuf = Lexing.from_channel ch in
+          try
+              Parser.main Lexer.token lexbuf
+          with
+              | _ ->
                 begin
-                    close_in ch;
+                close_in ch;
                 let pos = lexbuf.Lexing.lex_curr_p in
                 let tok = (Lexing.lexeme lexbuf) in
                 (* let line = pos.Lexing.pos_lnum in *)
                 let cnum = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
                 failwith ("Parsing error at token '" ^ tok ^ "', line "
-                     ^ (string_of_int pos.Lexing.pos_lnum) ^ ", column " ^ string_of_int cnum)
+                 ^ (string_of_int pos.Lexing.pos_lnum) ^ ", column " ^ string_of_int cnum)
                 end in
-        close_in ch;
-    if !run_pp then print_endline (Ops.pretty_program prog);
-    (* TODO: Should create a new directory with main.c and Makefile to mirror bsg_manycore programsg *)
-    if !run_bsg then write_bsg prog;
+      close_in ch;
     if !run_f1 then 
-      let filename : string = 
-        String.split_on_char '/' f
-        |> List.rev
-        |> List.hd 
-        |> String.split_on_char '.' 
-        |> List.hd in
-      write_f1 prog filename;
+      begin
+        let filename : string = 
+          String.split_on_char '/' f
+          |> List.rev
+          |> List.hd 
+          |> String.split_on_char '.' 
+          |> List.hd in
+        write_f1 prog filename 
+      end;
+    if !run_visualize then 
+      begin
+        print_endline "run_visualize is true";
+        Visualize.generate_arrangement_image prog;
+      end
+    (*
+    if !run_pp then print_endline (Ops.pretty_program prog);
+    if !run_bsg then write_bsg prog;
     if !run_gcc then
         let out_dir : string = "gcc-gen" in
         let _ = Sys.command ("mkdir -p " ^ out_dir) in
         let ch = open_out (*f ^*) (out_dir ^ "main.c") in
         output_string ch (Simplec.convert_ast prog);
         close_out ch;
+    *)
         (* if !run_v then print_endline (Simplec.convert_ast prog); *)

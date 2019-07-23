@@ -34,9 +34,14 @@ and top_level_group_decl = {
   group_decls : group_decl list
 }
 
-and group_decl = {
+and grouping = {
   group_name : string; 
-  ranges : range list;
+  group_dims : (string * range) list;
+  parent_tile_range : range list;
+}
+
+and group_decl = {
+  grouping : grouping;
   sub_groups : group_decl list
 }
 

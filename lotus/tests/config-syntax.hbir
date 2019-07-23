@@ -1,10 +1,24 @@
 target {
+  tile t[x][y] {
+    memory m[10] {
+      size : 10,
+      width : 10
+    }
+  }
 }
 
 config {
-  in t {
-    group g1 at (0 : xmax/2, 0 : ymax);
-    group g2 at (xmax/2 : xmax, 0 : ymax);
+  arrange t as {
+    group top_half at (0 : xmax/2, 0 : ymax) {
+      group row[i in 0 : 2] at (i * xmax/2: i * (xmax/2 * i), 0 : ymax) {
+        group col[j in 0 : ymax] at (0 : xmax, j);
+      }
+    }
+    group bot_half at (xmax/2 : xmax, 0 : ymax) {
+      group row[i in 0 : 2] at (i * xmax/2: i * (xmax/2 * i), 0 : ymax) {
+        group col[j in 0 : ymax] at (0 : xmax, j);
+      }
+    }
   }
 }
 
