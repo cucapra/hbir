@@ -2,10 +2,19 @@
 
 {
 open Parser
+
+let update_loc lexbuf =
+  let pos = lexbuf.Lexing.lex_curr_p in
+  lexbuf.Lexing.lex_curr_p <- { pos with
+    Lexing.pos_lnum = pos.Lexing.pos_lnum + 1;
+    Lexing.pos_bol = pos.Lexing.pos_cnum;
+  }
+
 }
 
 (* Regular expression matchings *)
-let whitespace = ['\t' ' ' '\n']
+let whitespace = ['\t' ' ']
+let newline = ['\n' '\r']
 let comment = "//" [^ '\r' '\n']*
 let digit = ['0'-'9']
 let st = '1' '6'
@@ -105,6 +114,8 @@ rule token =
     | ","           { COMMA }
 
     (* Whitespace *)
+    | newline { update_loc lexbuf; token lexbuf}
+
     | whitespace+        { token lexbuf }
 
     | comment            { token lexbuf }
