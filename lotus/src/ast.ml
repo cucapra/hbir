@@ -27,22 +27,20 @@ and tile_decl = {
 }
 
 (* ------ config section ------ *)
-and config_section = top_level_group_decl list
+and config_section = arrange_decl list
 
-and top_level_group_decl = {
-  tile_group_name : string;
-  group_decls : group_decl list
-}
-
-and grouping = {
-  group_name : string; 
-  group_dims : (string * range) list;
-  parent_tile_range : range list;
+and arrange_decl = {
+  arr_name : string;
+  arr_size_vars : string * string;
+  arr_groups: group_decl list
 }
 
 and group_decl = {
-  grouping : grouping;
-  sub_groups : group_decl list
+  group_dim_iters : (string * expr) list;
+  group_name : string; 
+  group_size_names : string * string;
+  group_parent_range : range * range;
+  subgroups : group_decl list
 }
 
 and range = expr option * expr option

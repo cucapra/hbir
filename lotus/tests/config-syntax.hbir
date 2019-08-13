@@ -8,15 +8,15 @@ target {
 }
 
 config {
-  arrange t as {
-    group top_half at (0 : xmax/2, 0 : ymax) {
-      group row[i in 0 : 2] at (i * xmax/2: i * (xmax/2 * i), 0 : ymax) {
-        group col[j in 0 : ymax] at (0 : xmax, j);
+  arrange t(grid_rows, grid_cols) as {
+    group top_half(th_rows, th_cols) at (0 : grid_rows/2, 0 : grid_cols) {
+      group[i in th_rows] row(x, cols) at (i, 0 : th_cols) {
+        group[j in cols] col at (0, j)
       }
     }
-    group bot_half at (xmax/2 : xmax, 0 : ymax) {
-      group row[i in 0 : 2] at (i * xmax/2: i * (xmax/2 * i), 0 : ymax) {
-        group col[j in 0 : ymax] at (0 : xmax, j);
+    group bot_half(bh_rows, bh_cols) at (0 : grid_rows/2, 0 : grid_cols) {
+      group[i in bh_rows] row(x, cols) at (i, 0 : bh_cols) {
+        group[j in cols] col at (0, j)
       }
     }
   }

@@ -5,7 +5,8 @@ open Parser
 }
 
 (* Regular expression matchings *)
-let whitespace = ['\t' ' ' '\n']
+let newline = ['\n']
+let whitespace = ['\t' ' ']
 let comment = "//" [^ '\r' '\n']*
 let digit = ['0'-'9']
 let st = '1' '6'
@@ -105,6 +106,9 @@ rule token =
     | ","           { COMMA }
 
     (* Whitespace *)
+    | newline            { Lexing.new_line lexbuf;
+                           token lexbuf }
+
     | whitespace+        { token lexbuf }
 
     | comment            { token lexbuf }

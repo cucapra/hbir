@@ -99,7 +99,7 @@ let main :=
       RIGHT_BRACE;
 
       CONFIG; LEFT_BRACE; 
-        config_section = tile_arrangement*; 
+        config_section = arrange_decl*; 
       RIGHT_BRACE;
 
       DATA; LEFT_BRACE; 
@@ -146,6 +146,12 @@ let dim :=
 let nameLookup :=
     | ~ = separated_nonempty_list(DOT; {}, ~ = ID; <>); <>
 
+let group_name_decl :=
+    | group_name = ID; 
+      group_size_names = parens(~ = ID; COMMA; ~ = ID; <>); <>
+    | group_name = ID; { (group_name, ("", "")) }
+
+
 (* Target Section *)
 let targetDecl :=
     | m = mem_decl; { GlobalMemDecl m }
@@ -166,28 +172,39 @@ let tile_decl :=
 
 
 (* Config section *)
-let tile_arrangement :=
-    | ARRANGE; tile_group_name = ID; AS;
-      LEFT_BRACE; group_decls = group_decl*; RIGHT_BRACE;
-      { {tile_group_name; group_decls} }
-
-let grouping :=
-    | GROUP; group_name = ID; group_dims = group_dim*; AT;
-      parent_tile_range = parens(separated_nonempty_list(COMMA, range));
-    { {group_name; group_dims; parent_tile_range; } }
-
-let group_dim :=
-    | ~ = brackets(~ = ID; IN; ~ = range; <>); <>
+let arrange_decl :=
+    | ARRANGE; name = group_name_decl; AS;
+      arr_groups = braces(group_decl+);
+      {
+        let arr_name, arr_size_vars = name in
+        {arr_name; arr_size_vars; arr_groups;} 
+      }
 
 let group_decl :=
-    | ~ = grouping; SEMICOLON;
-      { {grouping; sub_groups = [] } }
-    | ~ = grouping; sub_groups = braces(group_decl*);
-      { {grouping; sub_groups; } }
+    | GROUP; group_dim_iters = group_dim_iter*;
+      name = group_name_decl; AT;
+      group_parent_range = parens(rows = range; COMMA; cols = range; <>);
+      maybe_subgroups = braces(group_decl*)?;
+      { 
+        let group_name, group_size_names = name in
+        let subgroups =
+          match maybe_subgroups with
+          | None -> []
+          | Some sgs -> sgs in
+        { group_dim_iters;
+          group_name;
+          group_size_names;
+          group_parent_range;
+          subgroups }
+      }
+
+let group_dim_iter :=
+    | ~ = brackets(~ = ID; IN; ~ = expr; <>); <>
 
 let range :=
     | e1 = expr?; COLON; e2 = expr?; <>
     | e = expr; { (Some e, Some e) }
+
 
 (* data section *)
 let data_decl :=
