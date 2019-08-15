@@ -21,7 +21,7 @@ let rec cross_bounds (bounds : int list) : ga_index list =
   let rec range (n : int) : ga_index list = 
     if n <= 0 then []
     else [n-1]::(range (n-1)) in
-  let rec grow_ixs (i : int) (ixs : ga_index list)  = 
+  let grow_ixs (i : int) (ixs : ga_index list)  = 
     List.map (fun ix -> ix@[i]) ixs in
   match bounds with
   | [] -> []
@@ -100,5 +100,3 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
     abs_arr_groups = 
       List.map (group_decl_to_group_array [] tile_size_bindings) arr_decl.Ast.arr_groups
   }
-
-
