@@ -36,11 +36,11 @@ and arrange_decl = {
 }
 
 and group_decl = {
-  group_dim_iters : (string * expr) list;
-  group_name : string; 
-  group_size_names : string * string;
-  group_parent_range : range * range;
-  subgroups : group_decl list
+  gd_dim_iters : (string * expr) list;
+  gd_name : string; 
+  gd_row_range : string * range;
+  gd_col_range : string * range;
+  gd_subgroups : group_decl list
 }
 
 and range = expr option * expr option
@@ -86,11 +86,14 @@ and typ =
     | IntTyp
     | FloatTyp
 
+and value =
+    | IntVal of int
+    | FloatVal of float
+    | BoolVal of bool
+
 and expr =
     | VarExpr of string
-    | IntExpr of int
-    | FloatExpr of float
-    | BoolExpr of bool
+    | ValExpr of value
     | DerefExpr of expr * (expr list)
     | BinAppExpr of binop * expr * expr
     | FunAppExpr of string * (expr list)

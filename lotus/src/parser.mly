@@ -181,21 +181,22 @@ let arrange_decl :=
       }
 
 let group_decl :=
-    | GROUP; group_dim_iters = group_dim_iter*;
+    | GROUP; gd_dim_iters = group_dim_iter*;
       name = group_name_decl; AT;
       group_parent_range = parens(rows = range; COMMA; cols = range; <>);
       maybe_subgroups = braces(group_decl*)?;
       { 
-        let group_name, group_size_names = name in
-        let subgroups =
+        let gd_name, (row_size_name, col_size_name) = name in
+        let row_range, col_range = group_parent_range in
+        let gd_subgroups =
           match maybe_subgroups with
           | None -> []
           | Some sgs -> sgs in
-        { group_dim_iters;
-          group_name;
-          group_size_names;
-          group_parent_range;
-          subgroups }
+        { gd_dim_iters;
+          gd_name;
+          gd_row_range = (row_size_name, row_range);
+          gd_col_range = (col_size_name, col_range);
+          gd_subgroups }
       }
 
 let group_dim_iter :=
@@ -260,9 +261,9 @@ let binapp(binop) :=
       { BinAppExpr (binop, e1, e2) }
 
 let expr :=
-    | ~ = INT_LITERAL; < IntExpr >
-    | ~ = FLOAT_LITERAL; < FloatExpr >
-    | ~ = BOOL_LITERAL; < BoolExpr >
+    | ~ = INT_LITERAL; < Utils.expr_of_int >
+    | ~ = FLOAT_LITERAL; < Utils.expr_of_float >
+    | ~ = BOOL_LITERAL; < Utils.expr_of_bool >
     | a = ID; dims = dim+;
       { DerefExpr (VarExpr a, dims) }
     | ~ = binapp(PLUS; { Plus }); <>
