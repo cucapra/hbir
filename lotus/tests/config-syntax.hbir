@@ -1,5 +1,5 @@
 target {
-  tile t[x][y] {
+  tile t[4][4] {
     memory m[10] {
       size : 10,
       width : 10
@@ -14,7 +14,7 @@ config {
         group[j in cols] col at (0, j)
       }
     }
-    group bot_half(bh_rows, bh_cols) at (0 : grid_rows/2, 0 : grid_cols) {
+    group bot_half(bh_rows, bh_cols) at (grid_rows/2 : grid_rows, 0 : grid_cols) {
       group[i in bh_rows] row(x, cols) at (i, 0 : bh_cols) {
         group[j in cols] col at (0, j)
       }
