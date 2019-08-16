@@ -33,6 +33,7 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
 
   let rec group_decl_to_group_array (par_ix_ctxt : Utils.ctxt)
                                     (par_size_ctxt : Utils.ctxt)
+                                    (par_origin : int * int)
                                     (g_decl : Ast.group_decl) : group_array =
     (* generate all indices from iterators *)
     let indices : Utils.ctxt list = 
@@ -51,7 +52,7 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
     { ga_dims = List.length g_decl.Ast.gd_dim_iters;
       ga_indexed_groups = 
         List.map 
-        (rel_ix_group_to_abs_ix_group par_ix_ctxt par_size_ctxt g_decl) 
+        (rel_ix_group_to_abs_ix_group par_ix_ctxt par_size_ctxt g_decl par_origin) 
         indices }
 
   (* calculate indexed absolute group corresponding to relative group at a given index
@@ -59,7 +60,9 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
  and rel_ix_group_to_abs_ix_group (par_ix_ctxt : Utils.ctxt)
                                   (par_size_ctxt : Utils.ctxt)
                                   (g_decl : Ast.group_decl)
+                                  (abs_offset : int * int)
                                   (ix_ctxt : Utils.ctxt) : ga_index * abs_group =
+    let abs_row_offset, abs_col_offset = abs_offset in 
     let row_size_name, row_range = g_decl.Ast.gd_row_range in
     let col_size_name, col_range = g_decl.Ast.gd_col_range in
 
@@ -75,14 +78,17 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
     (* evaluate nested group_decls only using index bindings; we remove parent size bindings *)
     let subgroups : group_array list =
       List.map
-      (group_decl_to_group_array subgroup_ix_ctxt subgroup_par_size_ctxt)
+      (group_decl_to_group_array 
+       subgroup_ix_ctxt 
+       subgroup_par_size_ctxt 
+       (min_row + abs_row_offset, min_col + abs_col_offset))
       g_decl.Ast.gd_subgroups in
 
     let _, ix = List.split ix_ctxt in 
     ix,
     { g_rel_name = g_decl.Ast.gd_name;
-      g_abs_row_range = (min_row, max_row);
-      g_abs_col_range = (min_col, max_col);
+      g_abs_row_range = (min_row + abs_row_offset, max_row + abs_row_offset);
+      g_abs_col_range = (min_col + abs_col_offset, max_col + abs_col_offset);
       g_subgroups = subgroups; } in
 
 
@@ -93,7 +99,7 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
 
   { abs_arr_grid_size = tile_grid_size;
     abs_arr_groups = 
-      List.map (group_decl_to_group_array [] tile_size_bindings) arr_decl.Ast.arr_groups }
+      List.map (group_decl_to_group_array [] tile_size_bindings (0,0)) arr_decl.Ast.arr_groups }
 
 
 let print_abs_arrangement (a : abs_arrangement) : unit =
