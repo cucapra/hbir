@@ -204,7 +204,7 @@ let group_dim_iter :=
 
 let range :=
     | e1 = expr?; COLON; e2 = expr?; <>
-    | e = expr; { (Some e, Some e) }
+    | e = expr; { (Some e, None) }
 
 
 (* data section *)

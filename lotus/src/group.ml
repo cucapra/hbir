@@ -8,11 +8,18 @@ and group_array = {
 
 and abs_group = {
   g_rel_name : string; (* relative name; absolute name computable with index *)
-  g_abs_row_range : int * int; (* absolute range *)
-  g_abs_col_range : int * int; (* absolute range *)
+  (* closed intervals for absolute ranges *)
+  g_abs_row_range : int * int; 
+  g_abs_col_range : int * int; 
   g_subgroups : group_array list }
 
 and ga_index = int list 
+
+let rec ga_index_to_string ix : string = 
+  begin match ix with
+  | [] -> ""
+  | i::is -> Printf.sprintf "[%d]" i ^ ga_index_to_string is
+  end
 
 let rec cross_bounds (bounds : int list) : ga_index list =
   let rec range (n : int) : ga_index list = 
@@ -68,7 +75,7 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
 
     let full_ctxt : Utils.ctxt = par_size_ctxt @ par_ix_ctxt @ ix_ctxt in
     let min_row, max_row = Utils.eval_range full_ctxt row_range in
-    let min_col, max_col= Utils.eval_range full_ctxt col_range in
+    let min_col, max_col = Utils.eval_range full_ctxt col_range in
 
     let subgroup_par_size_ctxt = 
       [(row_size_name, (max_row - min_row));
@@ -87,8 +94,12 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
     let _, ix = List.split ix_ctxt in 
     ix,
     { g_rel_name = g_decl.Ast.gd_name;
-      g_abs_row_range = (min_row + abs_row_offset, max_row + abs_row_offset);
-      g_abs_col_range = (min_col + abs_col_offset, max_col + abs_col_offset);
+      g_abs_row_range = 
+        (min_row + abs_row_offset, 
+        max_row - 1 + abs_row_offset);
+      g_abs_col_range = 
+        (min_col + abs_col_offset, 
+        max_col - 1 + abs_col_offset);
       g_subgroups = subgroups; } in
 
 
@@ -108,11 +119,6 @@ let print_abs_arrangement (a : abs_arrangement) : unit =
       let index, g = ix_group in
       let row_min, row_max = g.g_abs_row_range in
       let col_min, col_max = g.g_abs_col_range in
-      let rec ga_index_to_string ix : string = 
-        begin match ix with
-        | [] -> ""
-        | i::is -> Printf.sprintf "[%d]" i ^ ga_index_to_string is
-        end in
       Printf.sprintf 
       "group: %s%s\nabs_range: (%d:%d, %d:%d)\n{%s}"
       g.g_rel_name (ga_index_to_string index)

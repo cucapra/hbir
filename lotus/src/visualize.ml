@@ -2,17 +2,32 @@ open Vg
 open Gg
 
 
-let generate_arrangement_image _ = ()
+let generate_arrangement_image _ =
 
-let draw_tile (color: color) (tile_label : string) : Vg.image =
-  let tile_image : Vg.image =
-    let tile_path = P.empty |> P.rect Box2.unit in
-    let tile_outline = `O { P.o with P.width = 0.02 } in
+  let draw_rectangle (color: color) 
+                     (label : string) 
+                     (grid_rows : int)
+                     (row_range : int * int)
+                     (col_range : int * int)
+                     : Vg.image =
+
+  let (min_row, max_row), (min_col, max_col) = row_range, col_range in
+  let num_rows = max_row - min_row + 1 in
+  let num_cols = max_col - min_col + 1 in
+
+  let rect_image : Vg.image =
+    let rect_path = P.empty |> P.rect Box2.unit in
+    let rect_outline = `O { P.o with P.width = 0.008 } in
     let outline_color : Vg.image = I.const Color.black in
     I.blend
-    (I.cut ~area:tile_outline tile_path outline_color)
+    (I.cut ~area:rect_outline rect_path outline_color)
     (I.const color) 
-    |> I.cut tile_path in
+    |> I.cut rect_path 
+    |> I.scale 
+        (V2.v 
+          (float_of_int num_cols)
+          (float_of_int num_rows)
+        ) in
 
   let font_image : Vg.image =
     let open_sans_xbold =
@@ -23,57 +38,52 @@ let draw_tile (color: color) (tile_label : string) : Vg.image =
     let font =
       { open_sans_xbold with
         Font.size = Size2.w Size2.unit /. 6.} in
-    I.cut_glyphs ~text:tile_label font [] (I.const Color.black) 
-    |> I.move (V2.v 0.3 0.4) in
+    I.cut_glyphs ~text:label font [] 
+      (I.const (Color.blend color (Color.with_a Color.black 0.8)))
+    |> I.move (V2.v 0.3 (float_of_int (num_rows-1) +. 0.4)) in
 
-  I.blend font_image tile_image
-
-
-let draw_tile_grid (size : int * int)
-                   (origin : int * int) (*only affects tile label, not grid pos*)
-                   (color : color) : Vg.image =
-  let rows, cols = size in
-  let row_origin, col_origin = origin in
-
-  (* maps tile index to spatial position as follows:
-    * [ (0,0) (0,1) ... (0,m)
-    *   ..
-    *   (n,0) (n,1) ... (n,m) ] *)
-  let add_tile_at_index (row: int) (col: int) (image : Vg.image) : Vg.image =
-    let tile_label = Printf.sprintf "%d x %d" (row + row_origin) (col + col_origin) in
-    let tile : Vg.image = draw_tile color tile_label in
-    let moved_tile = 
-      I.move (V2.v (float col) (float (rows-1 - row))) tile in
-    I.blend moved_tile image in
-
-  let rec build_grid row col image =
-    let grid_accum = add_tile_at_index row col image in
-    match row, col with
-    | 0, 0 -> grid_accum
-    | _, 0 -> grid_accum |> build_grid (row-1) (cols-1)
-    | _ -> grid_accum |> build_grid row (col-1) in
-
-  build_grid (rows-1) (cols-1) I.void
+  I.blend font_image rect_image
+  |> I.move 
+     (V2.v (float_of_int min_col) 
+           (float_of_int (grid_rows - num_rows - min_row))) in
 
 
+  let draw_grid (size : int * int) : Vg.image =
+    let rows, cols = size in
+
+    (* maps tile index to spatial position as follows:
+      * [ (0,0) (0,1) ... (0,m)
+      *   ..
+      *   (n,0) (n,1) ... (n,m) ] *)
+    let add_tile_at_index (row: int) (col: int) (image : Vg.image) : Vg.image =
+      let tile_label = 
+        Printf.sprintf "%d x %d" row col in
+      let tile : Vg.image = 
+        draw_rectangle (Color.gray 0.5) tile_label rows (row, row) (col, col) in
+      I.blend tile image in
+
+    let rec build_grid row col image =
+      let grid_accum = add_tile_at_index row col image in
+      match row, col with
+      | 0, 0 -> grid_accum
+      | _, 0 -> grid_accum |> build_grid (row-1) (cols-1)
+      | _ -> grid_accum |> build_grid row (col-1) in
+
+    build_grid (rows-1) (cols-1) I.void in
 
 (*
-type group = {
-  group_parent : group;
-  group_size : int * int;
-  sub_groups : group list;
-}
-
-type my_group = {
-  par_size : int * int;
-  size : int * int;
-  origin : int * int;
-  subgroups : group list;
-}
-
-type arrangement = (int * int) * (group list)
-
-let generate_arrangement_image (_: Ast.program) : unit =
+  let draw_abs_arrangement (arr : Group.abs_arrangement) : Vg.image =
+    let draw_group_array (ga : Group.group_array) : Vg.image =
+      
+    and draw_group (ix_g : Group.ga_index * Group.abs_group) (color : Vg.color) : Vg.image = 
+      let ix, g = ix_g in
+      let group_name = Printf.sprintf "%s%s" g.g_rel_name (Group.ga_index_to_string ix) in
+      draw_rectangle color group_name 
+      in
+      
+    let grid_image : Vg.image = draw_grid arr.abs_arr_grid_size in
+    let groups : Vg.image list = List.map draw_group_array arr.abs_arr_groups in
+*)
 
   let write_image (r_image : Vgr.renderable) : unit =
     try
@@ -90,6 +100,21 @@ let generate_arrangement_image (_: Ast.program) : unit =
           close_out oc; raise e
     with Sys_error e -> prerr_endline e in
 
+  let rows, cols = (4, 4) in
+  let view_length = max rows cols in
+  write_image 
+    ( Size2.v 200. 200., 
+      Box2.v (V2.v 0. 0.) (V2.v (float_of_int view_length) (float_of_int view_length)),
+      I.blend 
+      (draw_rectangle (Color.with_a Color.green 0.5) "tile" 4 (0, 1) (0, 3))
+      (draw_grid (4, 4))
+    )
+
+
+(*
+type arrangement = (int * int) * (group list)
+
+let generate_arrangement_image (_: Ast.program) : unit =
 
 
   let draw_tile_grid (size : int * int)
@@ -234,8 +259,4 @@ let generate_arrangement_image (_: Ast.program) : unit =
 
   let _ = test_arrangement1 in
   let _ = test_arrangement2 in
-  write_image 
-    ( Size2.v 200. 200., 
-      Box2.v (V2.v 0. 0.) (Size2.v 4. 4.), 
-      draw_arrangement test_arrangement2)
 *)

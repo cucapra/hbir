@@ -40,24 +40,23 @@ let rec eval_expr (ctxt : ctxt) (e : Ast.expr) : Ast.value =
   | _ -> failwith "unimplemented eval"
 
 
+  let eval_int_expr (ctxt : ctxt) (e : Ast.expr) : int =
+    if typecheck e Ast.IntTyp
+    then eval_expr ctxt e |> int_of_value
+    else failwith "range requires int type bounds"
+
 let eval_range (ctxt : ctxt) (r : Ast.range) : int * int =
   let maybe_low_bound, maybe_up_bound = r in
 
   let low_bound : int = 
     match maybe_low_bound with
     | None -> 0
-    | Some low_bound_expr -> 
-        if typecheck low_bound_expr Ast.IntTyp
-        then eval_expr ctxt low_bound_expr |> int_of_value
-        else failwith "range requires int type bounds" in
+    | Some low_bound_expr -> eval_int_expr ctxt low_bound_expr in
 
   let up_bound : int = 
     match maybe_up_bound with
-    | None -> failwith "unimplemented no upper bound"
-    | Some up_bound_expr ->
-        if typecheck up_bound_expr Ast.IntTyp
-        then eval_expr ctxt up_bound_expr |> int_of_value
-        else failwith "range requires int type bounds" in
+    | None -> low_bound + 1
+    | Some up_bound_expr -> eval_int_expr ctxt up_bound_expr in
 
   (low_bound, up_bound) 
 
