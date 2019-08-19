@@ -4,8 +4,8 @@ open Gg
 
 let generate_arrangement_image (prog : Ast.program) =
 
-  let draw_rectangle (color: color) 
-                     (label : string) 
+  let draw_rectangle (color: color)
+                     (label : string)
                      (grid_rows : int)
                      (row_range : int * int)
                      (col_range : int * int)
@@ -37,10 +37,10 @@ let generate_arrangement_image (prog : Ast.program) =
         slant = `Normal} in
     let font =
       { open_sans_xbold with
-        Font.size = Size2.w Size2.unit /. 6.} in
-    I.cut_glyphs ~text:label font [] 
-      (I.const (Color.blend color (Color.with_a Color.black 0.8)))
-    |> I.move (V2.v 0.3 (float_of_int (num_rows-1) +. 0.4)) in
+        Font.size = 2. /. float_of_int (String.length label) } in
+    I.cut_glyphs ~text:label font []
+      (I.const Color.black)
+    |> I.move (V2.v (float_of_int 0 +. 0.1) (float_of_int (num_rows-1)+. 0.1)) in
 
   I.blend font_image rect_image
   |> I.move 
@@ -56,10 +56,8 @@ let generate_arrangement_image (prog : Ast.program) =
       *   ..
       *   (n,0) (n,1) ... (n,m) ] *)
     let add_tile_at_index (row: int) (col: int) (image : Vg.image) : Vg.image =
-      let tile_label = 
-        Printf.sprintf "%d x %d" row col in
       let tile : Vg.image = 
-        draw_rectangle (Color.gray 0.5) tile_label rows (row, row) (col, col) in
+        draw_rectangle (Color.white) "" rows (row, row) (col, col) in
       I.blend tile image in
 
     let rec build_grid row col image =
@@ -74,27 +72,41 @@ let generate_arrangement_image (prog : Ast.program) =
   let draw_abs_arrangement (arr : Group.abs_arrangement) : Vg.image =
     let grid_rows, _ = arr.abs_arr_grid_size in
 
-    let rec draw_group_array (color : color) (ga : Group.group_array) : Vg.image =
-      let ix_group_images : Vg.image list = List.map (draw_ix_group color) ga.ga_indexed_groups in
-      List.fold_left I.blend I.void ix_group_images
+    let rec draw_group_array (parent_name : string) 
+                             (color : color) 
+                             (ga : Group.group_array) : Vg.image =
+      let ix_group_images : Vg.image list = List.map (draw_ix_group parent_name color) ga.ga_indexed_groups in
+      List.fold_right I.blend ix_group_images I.void
       
-    and draw_ix_group (color : color) (ix_g : Group.ga_index * Group.abs_group) : Vg.image = 
+    and draw_ix_group (parent_name : string) 
+                      (color : color) 
+                      (ix_g : Group.ga_index * Group.abs_group) : Vg.image =
       let ix, g = ix_g in
-      let group_name = Printf.sprintf "%s%s" g.g_rel_name (Group.ga_index_to_string ix) in
+      let group_name = 
+        Printf.sprintf "%s.%s%s" parent_name g.g_rel_name (Group.ga_index_to_string ix) in
       let ix_group_image : Vg.image = 
-        draw_rectangle color group_name grid_rows g.Group.g_abs_row_range g.Group.g_abs_col_range in
-      List.map (draw_group_array (Color.with_a color (Color.a color *. 0.5))) g.g_subgroups 
+        draw_rectangle color 
+        (if List.length g.g_subgroups == 0 then group_name else "")
+        grid_rows g.Group.g_abs_row_range g.Group.g_abs_col_range in
+
+      List.map (draw_group_array group_name (Color.with_a color (Color.a color *. 0.5))) g.g_subgroups 
       |> List.fold_left I.blend ix_group_image in
       
-    let _ : Vg.image = draw_grid arr.abs_arr_grid_size in
+    let grid_image : Vg.image = draw_grid arr.abs_arr_grid_size in
     let colored_group_arrays : (Group.group_array * color) list = 
       let color_from_int (i : int) : color = 
-        let i_f = float_of_int i in
-        Color.v (0.1**i_f) (0.3**i_f) (0.4**i_f) 0.3 in
+        Random.init i;
+        Color.v (Random.float 1.) (Random.float 1.) (Random.float 1.) 0.2 in
       List.mapi (fun i ga -> ga, color_from_int i) arr.abs_arr_groups in
 
-    List.map (fun ga_c -> let (ga, c) = ga_c in draw_group_array c ga) colored_group_arrays
+    let group_arrays_image : Vg.image = 
+      List.map 
+      (fun ga_c -> 
+        let (ga, c) = ga_c in draw_group_array "t" c ga
+      ) colored_group_arrays
     |> List.fold_left I.blend I.void in
+    
+    I.blend group_arrays_image grid_image in
 
   let write_image (r_image : Vgr.renderable) : unit =
     try

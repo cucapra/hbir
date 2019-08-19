@@ -1,0 +1,20 @@
+target {
+  tile t[4][4] {
+    memory m[10] {
+      size : 10,
+      width : 10
+    }
+  }
+}
+
+config {
+  arrange t(tile_rows, tile_cols) as {
+    group grid(grid_rows, grid_cols) at (0 : tile_rows, 0 : tile_cols)
+  }
+}
+
+data {
+}
+
+code {
+}
