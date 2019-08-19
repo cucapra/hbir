@@ -3,7 +3,7 @@ type abs_arrangement = {
   abs_arr_groups : group_array list }
 
 and group_array = {
-  ga_dims : int;
+  ga_dim_bounds : int list;
   ga_indexed_groups : (ga_index * abs_group) list }
 
 and abs_group = {
@@ -43,20 +43,19 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
                                     (par_origin : int * int)
                                     (g_decl : Ast.group_decl) : group_array =
     (* generate all indices from iterators *)
-    let indices : Utils.ctxt list = 
+    let ((indices, dim_bounds) : Utils.ctxt list * int list) = 
       match g_decl.Ast.gd_dim_iters with
-      | [] -> [[]]
+      | [] -> [[]], []
       | _ -> 
         let eval_ctxt : Utils.ctxt = par_ix_ctxt @ par_size_ctxt in
         let ix_names, ix_bound_exprs = List.split g_decl.Ast.gd_dim_iters in
         let ix_bounds : int list =
-          List.map (Utils.eval_expr eval_ctxt) ix_bound_exprs 
-          |> List.map Utils.int_of_value in
+          List.map (Utils.eval_int_expr eval_ctxt) ix_bound_exprs in
         let ixs : ga_index list = cross_bounds ix_bounds in
-        List.map (fun ix -> List.combine ix_names ix) ixs in
+        List.map (fun ix -> List.combine ix_names ix) ixs, ix_bounds in
 
     (* one relative group corresponds to many absolute groups (i.e., group array) *)
-    { ga_dims = List.length g_decl.Ast.gd_dim_iters;
+    { ga_dim_bounds = dim_bounds;
       ga_indexed_groups = 
         List.map 
         (rel_ix_group_to_abs_ix_group par_ix_ctxt par_size_ctxt g_decl par_origin) 
@@ -124,16 +123,15 @@ let print_abs_arrangement (a : abs_arrangement) : unit =
       g.g_rel_name (ga_index_to_string index)
       row_min row_max col_min col_max 
       (List.map print_abs_group_array g.g_subgroups |> String.concat ",\n\t") in
-    Printf.sprintf "group array size: %d\nmembers: {\n%s\n}" 
-    ga.ga_dims
+    Printf.sprintf "group array size: %s\nmembers: {\n%s\n}" 
+    (List.map (string_of_int) ga.ga_dim_bounds |> String.concat " * ")
     (List.map print_ix_group ga.ga_indexed_groups |> String.concat ",\n\t") in
 
   List.map print_abs_group_array a.abs_arr_groups
   |> String.concat ",\n"
   |> print_endline
 
-
-let print_config_section (prog : Ast.program) : unit =
+let abs_arrangement_from_prog (prog : Ast.program) : abs_arrangement =
   let tile_grid_size : int list = 
     List.fold_left 
     (fun tiles targ_decl -> 
@@ -146,9 +144,9 @@ let print_config_section (prog : Ast.program) : unit =
     |> (fun t -> t.Ast.tile_dims)
     |> List.map (Utils.eval_expr [])
     |> List.map Utils.int_of_value in
-  let abs_arr = 
     arrange_decl_to_abs_arrangement 
     (List.hd prog.config_section) 
-    (List.nth tile_grid_size 0, List.nth tile_grid_size 1) in
+    (List.nth tile_grid_size 0, List.nth tile_grid_size 1)
 
-  print_abs_arrangement abs_arr
+let print_config_section (prog : Ast.program) : unit =
+  abs_arrangement_from_prog prog |> print_abs_arrangement

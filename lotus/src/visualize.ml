@@ -2,7 +2,7 @@ open Vg
 open Gg
 
 
-let generate_arrangement_image _ =
+let generate_arrangement_image (prog : Ast.program) =
 
   let draw_rectangle (color: color) 
                      (label : string) 
@@ -71,19 +71,30 @@ let generate_arrangement_image _ =
 
     build_grid (rows-1) (cols-1) I.void in
 
-(*
   let draw_abs_arrangement (arr : Group.abs_arrangement) : Vg.image =
-    let draw_group_array (ga : Group.group_array) : Vg.image =
+    let grid_rows, _ = arr.abs_arr_grid_size in
+
+    let rec draw_group_array (color : color) (ga : Group.group_array) : Vg.image =
+      let ix_group_images : Vg.image list = List.map (draw_ix_group color) ga.ga_indexed_groups in
+      List.fold_left I.blend I.void ix_group_images
       
-    and draw_group (ix_g : Group.ga_index * Group.abs_group) (color : Vg.color) : Vg.image = 
+    and draw_ix_group (color : color) (ix_g : Group.ga_index * Group.abs_group) : Vg.image = 
       let ix, g = ix_g in
       let group_name = Printf.sprintf "%s%s" g.g_rel_name (Group.ga_index_to_string ix) in
-      draw_rectangle color group_name 
-      in
+      let ix_group_image : Vg.image = 
+        draw_rectangle color group_name grid_rows g.Group.g_abs_row_range g.Group.g_abs_col_range in
+      List.map (draw_group_array (Color.with_a color (Color.a color *. 0.5))) g.g_subgroups 
+      |> List.fold_left I.blend ix_group_image in
       
-    let grid_image : Vg.image = draw_grid arr.abs_arr_grid_size in
-    let groups : Vg.image list = List.map draw_group_array arr.abs_arr_groups in
-*)
+    let _ : Vg.image = draw_grid arr.abs_arr_grid_size in
+    let colored_group_arrays : (Group.group_array * color) list = 
+      let color_from_int (i : int) : color = 
+        let i_f = float_of_int i in
+        Color.v (0.1**i_f) (0.3**i_f) (0.4**i_f) 0.3 in
+      List.mapi (fun i ga -> ga, color_from_int i) arr.abs_arr_groups in
+
+    List.map (fun ga_c -> let (ga, c) = ga_c in draw_group_array c ga) colored_group_arrays
+    |> List.fold_left I.blend I.void in
 
   let write_image (r_image : Vgr.renderable) : unit =
     try
@@ -100,14 +111,21 @@ let generate_arrangement_image _ =
           close_out oc; raise e
     with Sys_error e -> prerr_endline e in
 
-  let rows, cols = (4, 4) in
-  let view_length = max rows cols in
+  let arr : Group.abs_arrangement = Group.abs_arrangement_from_prog prog in
+  let grid_length =
+    let grid_rows, grid_cols = arr.abs_arr_grid_size in
+    max grid_rows grid_cols in
+
+  let view_length = float_of_int grid_length in
   write_image 
     ( Size2.v 200. 200., 
-      Box2.v (V2.v 0. 0.) (V2.v (float_of_int view_length) (float_of_int view_length)),
+      Box2.v (V2.v 0. 0.) (V2.v view_length view_length),
+      draw_abs_arrangement arr
+      (*
       I.blend 
       (draw_rectangle (Color.with_a Color.green 0.5) "tile" 4 (0, 1) (0, 3))
       (draw_grid (4, 4))
+      *)
     )
 
 
