@@ -41,7 +41,7 @@ let rec stmt_emit (ctxt : stmt_ctxt) (stmt : Ast.stmt) : string =
     | ForInStmt (i, (x1, x2), body) ->
       let lower_bound = 
         match x1 with
-        | None -> Ast.IntExpr 0
+        | None -> Ast.ValExpr (Ast.IntVal 0)
         | Some x1 -> x1 in
 
       let upper_bound =
@@ -51,7 +51,7 @@ let rec stmt_emit (ctxt : stmt_ctxt) (stmt : Ast.stmt) : string =
 
       let for_init_stmt = Ast.VarInitStmt (Ast.IntTyp, i, lower_bound) in
       let loop_cond_expr = Ast.BinAppExpr (Ast.Lt, Ast.VarExpr i, upper_bound) in
-      let inc_stmt = Ast.VarAssignStmt (i, Ast.BinAppExpr (Plus, Ast.VarExpr i, Ast.IntExpr 1)) in
+      let inc_stmt = Ast.VarAssignStmt (i, Ast.BinAppExpr (Plus, Ast.VarExpr i, Ast.ValExpr (Ast.IntVal 1))) in
 
       for_emit ctxt for_init_stmt loop_cond_expr inc_stmt body
     | ForOverStmt _  -> ""
@@ -104,9 +104,12 @@ and expr_emit (e : Ast.expr) : string =
 
   begin match e with
   | VarExpr str -> str
-  | IntExpr v -> string_of_int v
-  | FloatExpr v -> string_of_float v
-  | BoolExpr b -> if b then "true" else "false"
+  | ValExpr v ->
+    begin match v with
+    | IntVal n -> string_of_int n
+    | FloatVal f -> string_of_float f
+    | BoolVal b -> if b then "true" else "false"
+    end
   | DerefExpr (e, es) -> deref_emit (expr_emit e) es
   | BinAppExpr (binop, e1, e2) -> 
       "(%s %s %s)" #%

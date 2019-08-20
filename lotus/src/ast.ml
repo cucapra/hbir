@@ -27,17 +27,20 @@ and tile_decl = {
 }
 
 (* ------ config section ------ *)
-and config_section = top_level_group_decl list
+and config_section = arrange_decl list
 
-and top_level_group_decl = {
-  tile_group_name : string;
-  group_decls : group_decl list
+and arrange_decl = {
+  arr_name : string;
+  arr_size_vars : string * string;
+  arr_groups: group_decl list
 }
 
 and group_decl = {
-  group_name : string; 
-  ranges : range list;
-  sub_groups : group_decl list
+  gd_dim_iters : (string * expr) list;
+  gd_name : string; 
+  gd_row_range : string * range;
+  gd_col_range : string * range;
+  gd_subgroups : group_decl list
 }
 
 and range = expr option * expr option
@@ -83,11 +86,14 @@ and typ =
     | IntTyp
     | FloatTyp
 
+and value =
+    | IntVal of int
+    | FloatVal of float
+    | BoolVal of bool
+
 and expr =
     | VarExpr of string
-    | IntExpr of int
-    | FloatExpr of float
-    | BoolExpr of bool
+    | ValExpr of value
     | DerefExpr of expr * (expr list)
     | BinAppExpr of binop * expr * expr
     | FunAppExpr of string * (expr list)

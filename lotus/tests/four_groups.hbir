@@ -1,0 +1,36 @@
+target {
+  tile t[4][4] {
+    memory m[10] {
+      size : 10,
+      width : 10
+    }
+  }
+}
+
+config {
+  arrange t(grid_rows, grid_cols) as {
+    group top_left_corner(th_rows, th_cols) at (0 : grid_rows/2, 0 : grid_cols/2)
+    
+    group top_right_corner(th_rows, th_cols) at (0 : grid_rows/2, grid_cols/2 : grid_cols) {
+      group[i in th_rows] row(x, cols) at (i, 0 : th_cols) {
+        group[j in cols] col at (0, j)
+      }
+    }
+    group bot_left_corner(th_rows, th_cols) at (grid_rows/2 : grid_rows, 0 : grid_cols/2) {
+      group[i in th_rows] row(x, cols) at (i, 0 : th_cols) {
+        group[j in cols] col at (0, j)
+      }
+    }
+    group bot_right_corner(bh_rows, bh_cols) at (grid_rows/2 : grid_rows, grid_cols/2 : grid_cols) {
+      group[i in bh_rows] row(x, cols) at (i, 0 : bh_cols) {
+        group[j in cols] col at (0, j)
+      }
+    }
+  }
+}
+
+data {
+}
+
+code {
+}

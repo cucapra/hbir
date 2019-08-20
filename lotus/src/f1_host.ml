@@ -177,7 +177,7 @@ let emit (prog: Ast.program) (filename : string) : string =
     let cleanup_emit : string = 
       let cleanup_comment = "// Clean up." in
       cleanup_comment ^ "\n" ^
-      Core_emit.return_emit (Ast.IntExpr 0) in
+      Core_emit.return_emit (Ast.ValExpr (Ast.IntVal 0)) in
   
     (* TODO: 32_t in type? *)
     let params : (string * string) list =

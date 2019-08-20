@@ -99,7 +99,7 @@ let main :=
       RIGHT_BRACE;
 
       CONFIG; LEFT_BRACE; 
-        config_section = top_level_decl*; 
+        config_section = arrange_decl*; 
       RIGHT_BRACE;
 
       DATA; LEFT_BRACE; 
@@ -131,13 +131,26 @@ let main :=
         
 
 (* Utility Non-Terminals*)
-let dim ==
-    | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET;
-      <>
+let parens(x) := 
+    | LEFT_PAREN; x = x; RIGHT_PAREN; <>
+
+let braces(x) :=
+    | LEFT_BRACE; x = x; RIGHT_BRACE; <>
+
+let brackets(x) :=
+    | LEFT_BRACKET; x = x; RIGHT_BRACKET; <>
+
+let dim :=
+    | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET; <>
 
 let nameLookup :=
-    | ~ = separated_nonempty_list(DOT; {}, ~ = ID; <>);
-      <>
+    | ~ = separated_nonempty_list(DOT; {}, ~ = ID; <>); <>
+
+let group_name_decl :=
+    | group_name = ID; 
+      group_size_names = parens(~ = ID; COMMA; ~ = ID; <>); <>
+    | group_name = ID; { (group_name, ("", "")) }
+
 
 (* Target Section *)
 let targetDecl :=
@@ -159,24 +172,40 @@ let tile_decl :=
 
 
 (* Config section *)
-let top_level_decl :=
-    | ARRANGE; tile_group_name = ID; AS;
-      LEFT_BRACE; group_decls = group_decl*; RIGHT_BRACE;
-      { {tile_group_name; group_decls} }
+let arrange_decl :=
+    | ARRANGE; name = group_name_decl; AS;
+      arr_groups = braces(group_decl+);
+      {
+        let arr_name, arr_size_vars = name in
+        {arr_name; arr_size_vars; arr_groups;} 
+      }
 
 let group_decl :=
-    | GROUP; group_name = ID; AT; ~ = ranges; SEMICOLON;
-      { {group_name; ranges; sub_groups = [] } }
+    | GROUP; gd_dim_iters = group_dim_iter*;
+      name = group_name_decl; AT;
+      group_parent_range = parens(rows = range; COMMA; cols = range; <>);
+      maybe_subgroups = braces(group_decl*)?;
+      { 
+        let gd_name, (row_size_name, col_size_name) = name in
+        let row_range, col_range = group_parent_range in
+        let gd_subgroups =
+          match maybe_subgroups with
+          | None -> []
+          | Some sgs -> sgs in
+        { gd_dim_iters;
+          gd_name;
+          gd_row_range = (row_size_name, row_range);
+          gd_col_range = (col_size_name, col_range);
+          gd_subgroups }
+      }
 
-let ranges :=
-    | LEFT_PAREN; 
-      ~ = separated_nonempty_list(COMMA; {}, ~ = range; <>);
-      RIGHT_PAREN;
-      <>
+let group_dim_iter :=
+    | ~ = brackets(~ = ID; IN; ~ = expr; <>); <>
 
 let range :=
     | e1 = expr?; COLON; e2 = expr?; <>
-    | e = expr; { (Some e, Some e) }
+    | e = expr; { (Some e, None) }
+
 
 (* data section *)
 let data_decl :=
@@ -227,24 +256,14 @@ let code_block_decl :=
       LEFT_BRACE; cb_code = stmt; RIGHT_BRACE;
         { {cb_group_name; cb_code} }
 
-let parens(x) := 
-    | LEFT_PAREN; x = x; RIGHT_PAREN;
-      <>
-
-let braces(x) :=
-    | LEFT_BRACE; x = x; RIGHT_BRACE; <>
-
-let brackets(x) :=
-    | LEFT_BRACKET; x = x; RIGHT_BRACKET; <>
-
 let binapp(binop) :=
     | e1 = expr; binop = binop; e2 = expr;
       { BinAppExpr (binop, e1, e2) }
 
 let expr :=
-    | ~ = INT_LITERAL; < IntExpr >
-    | ~ = FLOAT_LITERAL; < FloatExpr >
-    | ~ = BOOL_LITERAL; < BoolExpr >
+    | ~ = INT_LITERAL; < Utils.expr_of_int >
+    | ~ = FLOAT_LITERAL; < Utils.expr_of_float >
+    | ~ = BOOL_LITERAL; < Utils.expr_of_bool >
     | a = ID; dims = dim+;
       { DerefExpr (VarExpr a, dims) }
     | ~ = binapp(PLUS; { Plus }); <>
