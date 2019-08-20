@@ -112,6 +112,25 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
       List.map (group_decl_to_group_array [] tile_size_bindings (0,0)) arr_decl.Ast.arr_groups }
 
 
+let abs_arrangement_from_prog (prog : Ast.program) : abs_arrangement =
+  let tile_grid_size : int list = 
+    List.fold_left 
+    (fun tiles targ_decl -> 
+      match targ_decl with 
+      | Ast.TileDecl tile_decl -> tile_decl::tiles
+      | _ -> tiles)
+    []
+    prog.Ast.target_section
+    |> List.hd
+    |> (fun t -> t.Ast.tile_dims)
+    |> List.map (Utils.eval_expr [])
+    |> List.map Utils.int_of_value in
+    arrange_decl_to_abs_arrangement 
+    (List.hd prog.config_section) 
+    (List.nth tile_grid_size 0, List.nth tile_grid_size 1)
+
+
+(* dumps groups on command line *)
 let print_abs_arrangement (a : abs_arrangement) : unit =
   let rec print_abs_group_array (ga : group_array) : string =
     let print_ix_group (ix_group : ga_index * abs_group) : string =
@@ -130,23 +149,6 @@ let print_abs_arrangement (a : abs_arrangement) : unit =
   List.map print_abs_group_array a.abs_arr_groups
   |> String.concat ",\n"
   |> print_endline
-
-let abs_arrangement_from_prog (prog : Ast.program) : abs_arrangement =
-  let tile_grid_size : int list = 
-    List.fold_left 
-    (fun tiles targ_decl -> 
-      match targ_decl with 
-      | Ast.TileDecl tile_decl -> tile_decl::tiles
-      | _ -> tiles)
-    []
-    prog.Ast.target_section
-    |> List.hd
-    |> (fun t -> t.Ast.tile_dims)
-    |> List.map (Utils.eval_expr [])
-    |> List.map Utils.int_of_value in
-    arrange_decl_to_abs_arrangement 
-    (List.hd prog.config_section) 
-    (List.nth tile_grid_size 0, List.nth tile_grid_size 1)
 
 let print_config_section (prog : Ast.program) : unit =
   abs_arrangement_from_prog prog |> print_abs_arrangement
