@@ -1,6 +1,6 @@
 type abs_arrangement = {
   abs_arr_grid_size : int * int;
-  abs_arr_groups : group_array list }
+  abs_arr_group_arrays : group_array list }
 
 and group_array = {
   ga_rel_name : string;
@@ -8,10 +8,13 @@ and group_array = {
   ga_indexed_groups : indexed_group list }
 
 and abs_group = {
-  g_rel_name : string; (* relative name; absolute name computable with index *)
+  (* relative name; absolute name computable with index *)
+  g_rel_name : string; 
+
   (* closed intervals for absolute ranges *)
   g_abs_row_range : int * int; 
   g_abs_col_range : int * int; 
+
   g_subgroups : group_array list }
 
 and ga_index = int list 
@@ -37,8 +40,9 @@ let rec cross_bounds (bounds : int list) : ga_index list =
     (grow_ixs (b2-1) (range b1)) @ cross_bounds (b1::[b2-1])
   | _ -> failwith "unimplemented cross product"
 
-let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl) 
-                                    (tile_grid_size : int * int) : abs_arrangement =
+(* Relative to Absolute group translation *)
+let arrange_decl_to_abs_arrangement (tile_grid_size : int * int) 
+                                    (arr_decl : Ast.arrange_decl) : abs_arrangement =
 
   let rec group_decl_to_group_array (par_ix_ctxt : Utils.ctxt)
                                     (par_size_ctxt : Utils.ctxt)
@@ -111,7 +115,7 @@ let arrange_decl_to_abs_arrangement (arr_decl : Ast.arrange_decl)
     [(tile_rows_name, tile_rows); (tile_cols_name, tile_cols)] in
 
   { abs_arr_grid_size = tile_grid_size;
-    abs_arr_groups = 
+    abs_arr_group_arrays = 
       List.map (group_decl_to_group_array [] tile_size_bindings (0,0)) arr_decl.Ast.arr_groups }
 
 
@@ -129,57 +133,106 @@ let abs_arrangement_from_prog (prog : Ast.program) : abs_arrangement =
     |> List.map (Utils.eval_expr [])
     |> List.map Utils.int_of_value in
     arrange_decl_to_abs_arrangement 
-    (List.hd prog.config_section) 
     (List.nth tile_grid_size 0, List.nth tile_grid_size 1)
-
-let match_group_array_pattern (arr : abs_arrangement) 
-                              (pattern : group_pattern) : group_array list =
-
-  let match_group_array_name (name : string)
-                             (ga_list : group_array list) : group_array list =
-    List.filter (fun ga -> ga.ga_rel_name == name) ga_list in
-
-  let match_indexed_group (ix_pattern : ix_pattern)
-                          (ix : indexed_group) : bool =
-    let match_group_ix_element_pattern (ix_el_pat : ix_element_pattern)
-                                       (ix : int) : bool =
-      match ix_el_pat with
-      | SymIx x -> true
-      | ConcreteIx n -> ix == n in
-    let ix, 
-
-  ga.ga_indexed_groups
-
-  match pattern with
-  | GroupNamePattern rel_group_name index_pattern the_rest -> 
-
-
-    let index_filter: (ga : group_array list) 
-                      (ix_element_pat : ga_index_element_pattern) 
-                      (dim : int) : group_array list =
-      match sym_index with
-      | ConcreteIx n::ixs -> 
-      | SymbolicIx x::ixs ->
+    (List.hd prog.config_section) 
+    
 
 
 
-(* dumps groups on command line *)
+(* Group Pattern Matching *)
+type group_pattern = (string * ix_pattern) list
+and ix_elem_pattern = SymIx of string | ConcIx of int
+and ix_pattern = ix_elem_pattern list
+
+let match_in_arrangement (pattern : group_pattern) 
+                         (arr : abs_arrangement)
+                         : abs_group list =
+
+  let rec match_in_group_array (pattern : group_pattern)
+                               (ga : group_array) : abs_group list =
+
+    let rec match_sym_ix (sym_ix : ix_pattern) 
+                         (ix : ga_index) : bool =
+      match (sym_ix, ix) with
+      | ([], _::_) -> false
+      | (_::_, []) -> false
+      | ([], []) -> true
+      | (sym_i::sym_ixs, i::ixs) ->
+        match sym_i with
+        | SymIx _ -> true
+        | ConcIx n -> i == n
+        && match_sym_ix sym_ixs ixs in
+
+    match pattern with
+    | [] -> 
+        List.map (fun ix_g -> let _, g = ix_g in g) ga.ga_indexed_groups 
+    | (name, sym_ix)::remaining_pattern ->
+      ga.ga_indexed_groups
+      |> List.filter
+          (fun ix_g -> let ix, g = ix_g in
+            (*
+            begin if (String.trim g.g_rel_name) = (String.trim name) 
+            then Printf.printf 
+                 "SUCCESS match on group %s: %s == %s\n" 
+                 (g.g_rel_name ^ "[" ^ ga_index_to_string ix ^ "]")
+                 g.g_rel_name name
+            else Printf.printf 
+                 "FAILED match on group %s: %s != %s\n" 
+                 (g.g_rel_name ^ "[" ^ ga_index_to_string ix ^ "]")
+                 g.g_rel_name name
+            end;
+            *)
+            g.g_rel_name = name && match_sym_ix sym_ix ix)
+      |> List.map 
+          (fun ix_g -> let _, g = ix_g in 
+            match_in_group remaining_pattern g)
+      |> List.concat
+
+  and match_in_group (pattern : group_pattern)
+                     (g: abs_group) : abs_group list =
+
+     match g.g_subgroups with
+     | [] -> [g]
+     | _ -> 
+       List.map (match_in_group_array pattern) g.g_subgroups
+       |> List.concat in
+
+  List.map (match_in_group_array pattern) arr.abs_arr_group_arrays |> List.concat
+
+
+(* group printing on command line *)
+let rec print_abs_group_array (par_name : string) (ga : group_array) : string =
+  Printf.sprintf "group_array %s of size %s:\nmembers: {\n%s\n}" 
+  par_name
+  (List.map (string_of_int) ga.ga_dim_bounds |> String.concat " * ")
+  (List.map (print_ix_group (par_name ^ "." ^ ga.ga_rel_name)) ga.ga_indexed_groups 
+  |> String.concat ",\n\t")
+
+and print_ix_group (par_name : string) 
+                   (ix_group : indexed_group) : string =
+  let index, g = ix_group in
+  let row_min, row_max = g.g_abs_row_range in
+  let col_min, col_max = g.g_abs_col_range in
+  let ix_group_name = 
+    if par_name = "" then "" 
+    else par_name ^ "." ^ g.g_rel_name in
+  Printf.sprintf "ix_group_name: %s%s\ngroup_range: (%d:%d, %d:%d)\n\t{%s\n\t}"
+  ix_group_name
+  (g.g_rel_name ^ ga_index_to_string index)
+  row_min row_max col_min col_max 
+  (List.map (print_abs_group_array ix_group_name) g.g_subgroups |> String.concat ",\n\t")
+
+(* Alternative entry point for printing *)
+and print_group (g : abs_group) : string =
+  let row_min, row_max = g.g_abs_row_range in
+  let col_min, col_max = g.g_abs_col_range in
+  Printf.sprintf "group_name: %s\ngroup_range: (%d:%d, %d:%d)\n\t{%s\n\t}"
+  g.g_rel_name
+  row_min row_max col_min col_max 
+  (List.map (print_abs_group_array g.g_rel_name) g.g_subgroups |> String.concat ",\n\t")
+
 let print_abs_arrangement (a : abs_arrangement) : unit =
-  let rec print_abs_group_array (ga : group_array) : string =
-    let print_ix_group (ix_group : indexed_group) : string =
-      let index, g = ix_group in
-      let row_min, row_max = g.g_abs_row_range in
-      let col_min, col_max = g.g_abs_col_range in
-      Printf.sprintf 
-      "group: %s%s\nabs_range: (%d:%d, %d:%d)\n{%s}"
-      g.g_rel_name (ga_index_to_string index)
-      row_min row_max col_min col_max 
-      (List.map print_abs_group_array g.g_subgroups |> String.concat ",\n\t") in
-    Printf.sprintf "group array size: %s\nmembers: {\n%s\n}" 
-    (List.map (string_of_int) ga.ga_dim_bounds |> String.concat " * ")
-    (List.map print_ix_group ga.ga_indexed_groups |> String.concat ",\n\t") in
-
-  List.map print_abs_group_array a.abs_arr_groups
+  List.map (print_abs_group_array "t") a.abs_arr_group_arrays
   |> String.concat ",\n"
   |> print_endline
 

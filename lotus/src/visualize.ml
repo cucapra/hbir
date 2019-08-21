@@ -97,7 +97,7 @@ let generate_arrangement_image (prog : Ast.program) =
       let color_from_int (i : int) : color = 
         Random.init i;
         Color.v (Random.float 1.) (Random.float 1.) (Random.float 1.) 0.2 in
-      List.mapi (fun i ga -> ga, color_from_int i) arr.abs_arr_groups in
+      List.mapi (fun i ga -> ga, color_from_int i) arr.abs_arr_group_arrays in
 
     let group_arrays_image : Vg.image = 
       List.map 

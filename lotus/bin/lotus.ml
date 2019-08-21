@@ -107,7 +107,12 @@ let prog =
       end;
     if !run_visualize then 
       begin
-        Group.print_config_section prog ;
+        (*Group.print_config_section prog;*)
+        List.hd prog.config_section
+        |> Group.arrange_decl_to_abs_arrangement (4,4)
+        |> Group.match_in_arrangement (("bot_half", [])::("row",[SymIx "x"])::("col",[ConcIx 1])::[])
+        |> List.map Group.print_group
+        |> List.iter print_endline;
         Visualize.generate_arrangement_image prog;
       end
     (*
