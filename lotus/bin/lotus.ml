@@ -34,7 +34,7 @@ let write_f1 (prog : program) (filename : string) : unit =
     let out_dir : string = "." in
     let _ = Sys.command ("mkdir -p " ^ out_dir) in
     let ch1 = open_out (out_dir ^ "/" ^ filename ^ ".c") in
-    output_string ch1 (F1_device.emit prog filename);
+    output_string ch1 (F1_device.emit filename prog);
     close_out ch1;
     let ch2 = open_out (out_dir ^ "/Makefile") in
     output_string ch2 ("");
@@ -108,21 +108,5 @@ let prog =
     if !run_visualize then 
       begin
         (*Group.print_config_section prog;*)
-        List.hd prog.config_section
-        |> Group.arrange_decl_to_abs_arrangement (4,4)
-        |> Group.match_in_arrangement (("bot_half", [])::("row",[SymIx "x"])::("col",[ConcIx 1])::[])
-        |> List.map Group.print_group
-        |> List.iter print_endline;
         Visualize.generate_arrangement_image prog;
       end
-    (*
-    if !run_pp then print_endline (Ops.pretty_program prog);
-    if !run_bsg then write_bsg prog;
-    if !run_gcc then
-        let out_dir : string = "gcc-gen" in
-        let _ = Sys.command ("mkdir -p " ^ out_dir) in
-        let ch = open_out (*f ^*) (out_dir ^ "main.c") in
-        output_string ch (Simplec.convert_ast prog);
-        close_out ch;
-    *)
-        (* if !run_v then print_endline (Simplec.convert_ast prog); *)

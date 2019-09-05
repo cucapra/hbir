@@ -116,7 +116,9 @@ let arrange_decl_to_abs_arrangement (tile_grid_size : int * int)
 
   { abs_arr_grid_size = tile_grid_size;
     abs_arr_group_arrays = 
-      List.map (group_decl_to_group_array [] tile_size_bindings (0,0)) arr_decl.Ast.arr_groups }
+      List.map 
+      (group_decl_to_group_array [] tile_size_bindings (0,0)) 
+      arr_decl.Ast.arr_groups }
 
 
 let abs_arrangement_from_prog (prog : Ast.program) : abs_arrangement =
@@ -140,18 +142,14 @@ let abs_arrangement_from_prog (prog : Ast.program) : abs_arrangement =
 
 
 (* Group Pattern Matching *)
-type group_pattern = (string * ix_pattern) list
-and ix_elem_pattern = SymIx of string | ConcIx of int
-and ix_pattern = ix_elem_pattern list
+let match_in_abs_arrangement (pattern : Ast.group_pattern) 
+                             (arr : abs_arrangement)
+                             : abs_group list =
 
-let match_in_arrangement (pattern : group_pattern) 
-                         (arr : abs_arrangement)
-                         : abs_group list =
-
-  let rec match_in_group_array (pattern : group_pattern)
+  let rec match_in_group_array (pattern : Ast.group_pattern)
                                (ga : group_array) : abs_group list =
 
-    let rec match_sym_ix (sym_ix : ix_pattern) 
+    let rec match_sym_ix (sym_ix : Ast.ix_pattern) 
                          (ix : ga_index) : bool =
       match (sym_ix, ix) with
       | ([], _::_) -> false
@@ -159,13 +157,16 @@ let match_in_arrangement (pattern : group_pattern)
       | ([], []) -> true
       | (sym_i::sym_ixs, i::ixs) ->
         match sym_i with
-        | SymIx _ -> true
-        | ConcIx n -> i == n
+        | Ast.SymIx _ -> true
+        | Ast.ConcIx n -> i == n
         && match_sym_ix sym_ixs ixs in
 
     match pattern with
-    | [] -> 
-        List.map (fun ix_g -> let _, g = ix_g in g) ga.ga_indexed_groups 
+    | [] ->
+        List.map
+        (fun ix_g -> let _, g = ix_g in g)
+        ga.ga_indexed_groups
+
     | (name, sym_ix)::remaining_pattern ->
       ga.ga_indexed_groups
       |> List.filter
@@ -183,12 +184,12 @@ let match_in_arrangement (pattern : group_pattern)
             end;
             *)
             g.g_rel_name = name && match_sym_ix sym_ix ix)
-      |> List.map 
-          (fun ix_g -> let _, g = ix_g in 
+      |> List.map
+          (fun ix_g -> let _, g = ix_g in
             match_in_group remaining_pattern g)
       |> List.concat
 
-  and match_in_group (pattern : group_pattern)
+  and match_in_group (pattern : Ast.group_pattern)
                      (g: abs_group) : abs_group list =
 
      match g.g_subgroups with
@@ -199,6 +200,14 @@ let match_in_arrangement (pattern : group_pattern)
 
   List.map (match_in_group_array pattern) arr.abs_arr_group_arrays |> List.concat
 
+let match_in_program (prog : Ast.program) 
+                     (gp : Ast.group_pattern) : abs_group list =
+  let arr : abs_arrangement = abs_arrangement_from_prog prog in
+  match gp with
+  (* first element of pattern is tile grid name 
+   * in the future, perhaps match on list of arrangements *)
+  | (_, [])::gps -> match_in_abs_arrangement gps arr
+  | _ -> failwith "cannot index into physical tile grid"
 
 (* group printing on command line *)
 let rec print_abs_group_array (par_name : string) (ga : group_array) : string =

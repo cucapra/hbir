@@ -56,6 +56,7 @@ open Ast
 %token POUND_SIGN
 %token EOF
 
+%token <string> C_BLOB
 %token <string> FILENAME
 %token <int> INT_LITERAL
 %token <float> FLOAT_LITERAL
@@ -143,8 +144,18 @@ let brackets(x) :=
 let dim :=
     | LEFT_BRACKET; ~ = expr; RIGHT_BRACKET; <>
 
-let nameLookup :=
-    | ~ = separated_nonempty_list(DOT; {}, ~ = ID; <>); <>
+let groupNamePattern :=
+    | ~ = separated_nonempty_list(DOT, groupNamePatternHead); <>
+
+let groupNamePatternHead :=
+    | name = ID; ix = brackets(symIxElem)+;
+      { (name, ix) }
+    | name = ID;
+      { (name, []) }
+
+let symIxElem :=
+    | ~ = INT_LITERAL; < Ast.ConcIx >
+    | ~ = ID; < Ast.SymIx >
 
 let group_name_decl :=
     | group_name = ID; 
@@ -212,7 +223,7 @@ let data_decl :=
     | ~ = data_dir; data_name = ID; COLON;
       data_type = typ; data_dims = dim*;
       LEFT_BRACE;
-      LOCATION; COLON; data_loc = nameLookup; COMMA;
+      LOCATION; COLON; data_loc = groupNamePattern; COMMA;
       LAYOUT; COLON; ~ = data_layout;
       RIGHT_BRACE;
       { 
@@ -252,8 +263,8 @@ let constant_decl :=
   tau = typ; x = ID; EQ; e = expr; SEMICOLON; <>
 
 let code_block_decl :=
-    | cb_group_name = nameLookup;
-      LEFT_BRACE; cb_code = stmt; RIGHT_BRACE;
+    | cb_group_name = groupNamePattern;
+      cb_code = braces(stmt);
         { {cb_group_name; cb_code} }
 
 let binapp(binop) :=
@@ -289,6 +300,7 @@ let typ :=
     | FLOAT; { FloatTyp }
     | BOOL; { BoolTyp }
     | INT; { IntTyp }
+    | ~ = typ; TIMES; < RefTyp >
 
     
 let guarded_body := 
@@ -298,6 +310,7 @@ let stmt :=
     | s1 = stmt; s2 = stmt; < SeqStmt >
     | ~ = stmt_without_semi; <>
     | ~ = stmt_with_semi; SEMICOLON; <>
+    | ~ = C_BLOB; < Ast.C_BlobStmt >
     
 let stmt_without_semi := 
     | FOR; i = ID; OVER; a = ID; ~ = brackets(range);

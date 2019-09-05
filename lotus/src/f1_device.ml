@@ -1,5 +1,5 @@
 (* Compiles F1 Device Program *)
-let emit (prog : Ast.program) (filename : string) : string =
+let emit (filename : string) (prog : Ast.program) : string =
 
   (* 1. headers *)
   let device_header_emit = 
@@ -83,7 +83,30 @@ let emit (prog : Ast.program) (filename : string) : string =
       Core_emit.fun_decl_emit (Core_emit.type_emit ret_typ) f_name ps_emit)
     |> String.concat "\n" in
 
-  let fun_def_emit (fun_name : string) (prog : Ast.program) (cb : Ast.code_block_decl) : string =
+  let rec fun_name_of_pattern (gp : Ast.group_pattern) : string = 
+    let rec string_of_ix_pattern (ix : Ast.ix_pattern) : string =
+
+      let string_of_ix_elem_pattern (ix_elem : Ast.ix_elem_pattern) : string =
+        match ix_elem with
+        | Ast.SymIx x -> x
+        | Ast.ConcIx n -> string_of_int n in
+
+      match ix with
+      | [] -> ""
+      | i::[] -> Printf.sprintf "%s" (string_of_ix_elem_pattern i)
+      | i::is -> Printf.sprintf "%s_%s" (string_of_ix_elem_pattern i) (string_of_ix_pattern is) in
+
+    match gp with
+    | [] -> ""
+    | (g_name, [])::[] -> g_name
+    | (g_name, [])::p -> 
+        Printf.sprintf "%s_%s" g_name (fun_name_of_pattern p)
+    | (g_name, sym_ix)::[] ->
+        Printf.sprintf "%s_%s" g_name (string_of_ix_pattern sym_ix)
+    | (g_name, sym_ix)::p -> 
+        Printf.sprintf "%s_%s_%s" g_name (string_of_ix_pattern sym_ix) (fun_name_of_pattern p) in
+
+  let fun_def_emit (prog : Ast.program) (cb : Ast.code_block_decl) : string =
     let ds = prog.data_section in
 
     let ret_type =
@@ -91,7 +114,7 @@ let emit (prog : Ast.program) (filename : string) : string =
         List.filter (fun d -> d.Ast.data_dir == Ast.Out) ds.Ast.ds_data_decls in
 
       if List.length output_arrays == 0
-        then failwith Error.no_output_array
+        then "void" (*failwith Error.no_output_array*)
         else Core_emit.type_emit (List.hd output_arrays).Ast.data_type in
 
     let params = 
@@ -112,20 +135,66 @@ let emit (prog : Ast.program) (filename : string) : string =
 
       [code_body; barrier_completion] |> String.concat "\n" in
 
+    let fun_name : string = fun_name_of_pattern cb.cb_group_name in
     Core_emit.fun_emit ret_type fun_name params body in
 
-  let main_def : string = 
-    let body = Core_emit.unindent
-      "__wait_until_valid_func();
-      return 0;" in
 
-    Core_emit.fun_emit "int" "main" [] body in
+  let main_def (main_name : string) (prog : Ast.program) : string =
+    
+    let tile_id_x_var, tile_id_y_var = "bsg_x", "bsg_y" in
+
+    let range_check_emit (var : string) (abs_range : int * int) : string =
+      let (lb, ub)  = abs_range in
+      Printf.sprintf "%s <= %s && %s <= %s" 
+      (string_of_int lb) var var (string_of_int ub) in
+
+    let arg_list : string = 
+      prog.data_section.Ast.ds_data_decls
+      |> List.map 
+            (fun d -> Printf.sprintf "*%s %s32_t"
+              d.Ast.data_name
+              (Core_emit.type_emit d.Ast.data_type))
+      |> String.concat ", " in
+
+    let code_block_emit (cb : Ast.code_block_decl) : string =
+      let matching_abs_groups : Group.abs_group list = 
+        Group.match_in_program prog cb.cb_group_name in
+
+      let abs_group_fun_call_emit (g : Group.abs_group) : string =
+        let if_cond : string =
+          Printf.sprintf "%s && %s"
+          (range_check_emit tile_id_x_var g.g_abs_row_range)
+          (range_check_emit tile_id_y_var g.g_abs_col_range) in
+
+        let then_body : string = 
+          Printf.sprintf "%s(%s)" 
+          (fun_name_of_pattern cb.cb_group_name) 
+          arg_list in
+          
+        Printf.sprintf "if(%s)\n{\n%s\n}" if_cond (Core_emit.indent 1 then_body) in
+
+      print_endline (let s, _ = cb.cb_group_name |> List.hd in s);
+      print_endline ("matching groups: " ^ string_of_int (List.length matching_abs_groups));
+      List.map abs_group_fun_call_emit matching_abs_groups 
+      |> String.concat "\n" in
+          
+
+    let main_body = 
+      let code_blocks = 
+        List.map code_block_emit prog.code_section.cs_code_block_decls
+        |> String.concat "\n" in
+      let body_end = Core_emit.unindent
+        "__wait_until_valid_func();
+        return 0;" in
+       code_blocks ^ "\n" ^ body_end in
+
+    Core_emit.fun_emit "int" main_name [] main_body in
 
 
   [device_header_emit;
    constants_emit prog.Ast.data_section prog.Ast.target_section;
    extern_fun_decls prog.Ast.code_section.cs_extern_fun_decls;
-   List.map (fun cb -> fun_def_emit filename prog cb) prog.Ast.code_section.cs_code_block_decls
+   List.map (fun cb -> fun_def_emit prog cb) prog.Ast.code_section.cs_code_block_decls
       |> String.concat "\n\n";
-   main_def]
+   main_def filename prog]
    |> String.concat "\n\n"

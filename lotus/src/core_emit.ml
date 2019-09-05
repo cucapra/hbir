@@ -25,6 +25,7 @@ let build_stmt_ctxt (prog : Ast.program) : stmt_ctxt =
 
 let rec stmt_emit (ctxt : stmt_ctxt) (stmt : Ast.stmt) : string =
   match stmt with
+    | C_BlobStmt blob -> blob
     | SeqStmt (s1, s2) -> "%s\n%s" #% (stmt_emit ctxt s1) (stmt_emit ctxt s2)
     | VarInitStmt (tau, x, e) -> var_init_emit tau x e
     | VarAssignStmt (x, e) -> "%s = %s;" #% x (expr_emit e)
@@ -83,8 +84,6 @@ let rec stmt_emit (ctxt : stmt_ctxt) (stmt : Ast.stmt) : string =
         let inc_stmt = Ast.VarAssignStmt ("i", Ast.BinAppExpr (Plus, Ast.VarExpr "i", Ast.IntExpr 1)) in
         for_emit for_init_stmt loop_cond_expr inc_stmt body
         *)
-    | PrintStmt str -> "printf(\"%s\", " ^ str ^ ");"
-    | BsgFinishStmt -> "bsg_finish();"
 
 and expr_emit (e : Ast.expr) : string =
   let binop_emit (binop : Ast.binop) : string =
@@ -124,6 +123,7 @@ and type_emit (g : Ast.typ) : string =
     | BoolTyp -> "boolean"
     | IntTyp -> "int"
     | FloatTyp -> "float"
+    | RefTyp t -> type_emit t ^ "*"
 
 and inout_dir_emit (dir : Ast.inout_dir) : string = 
   match dir with

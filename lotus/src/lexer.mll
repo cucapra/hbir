@@ -29,8 +29,7 @@ let str = '"' (whitespace|letter|punctuation)* '"'
 let identifier = letter (letter | digit | '_')*
 
 (* Token rules *)
-rule token =
-    parse
+rule token = parse
     (* HBIR Keywords *)
     | "target"      { TARGET }
     | "memory"      { MEMORY }
@@ -125,4 +124,12 @@ rule token =
     (* Identifiers *)
     | identifier as id { ID (id) }
 
+    (* C Blob *)
+    | '`' { blob lexbuf }
+
     | eof        { EOF }
+
+and blob = shortest
+    | '`' { token lexbuf }
+    | [^ '`']* '`' as c_blob { C_BLOB (String.sub c_blob 1 (String.length c_blob - 3)); }
+

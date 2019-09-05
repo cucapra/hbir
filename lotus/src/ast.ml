@@ -56,7 +56,7 @@ and data_decl = {
   data_name : string;
   data_type : typ;
   data_dims : expr list;
-  data_loc : location;
+  data_loc : group_pattern;
   data_layout : data_layout; 
 }
 
@@ -77,7 +77,7 @@ and code_section = {
 }
 
 and code_block_decl = {
-  cb_group_name : location;
+  cb_group_name : group_pattern;
   cb_code : stmt
 }
 
@@ -85,6 +85,7 @@ and typ =
     | BoolTyp
     | IntTyp
     | FloatTyp
+    | RefTyp of typ
 
 and value =
     | IntVal of int
@@ -121,11 +122,14 @@ and stmt =
     | WhileStmt of expr * stmt
     | ForOverStmt of string * string * range * stmt
     | ForInStmt of string * range * stmt
-    | PrintStmt of string
-    | BsgFinishStmt
+    | C_BlobStmt of string
 
 
 (* utility types *)
+and group_pattern = (string * ix_pattern) list
+and ix_elem_pattern = SymIx of string | ConcIx of int
+and ix_pattern = ix_elem_pattern list
+
 and location = string list
 and parameter = string * typ
 and fun_decl = (string * (parameter list) * typ)

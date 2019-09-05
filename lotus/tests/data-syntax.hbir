@@ -1,4 +1,10 @@
 target{
+  tile t[4][4] {
+    memory m[10] {
+      size : 10,
+      width : 10
+    }
+  }
 }
 
 config{
