@@ -15,7 +15,10 @@ let expr_of_bool (b : bool) : Ast.expr = ValExpr (BoolVal b)
 
 let rec eval_expr (ctxt : ctxt) (e : Ast.expr) : Ast.value =
   match e with
-  | VarExpr x -> Ast.IntVal (List.assoc x ctxt)
+  | VarExpr x ->
+      begin try Ast.IntVal (List.assoc x ctxt)
+      with e -> print_endline ("no binding for variable " ^ x); 
+                raise e end
   | ValExpr v -> v
   | BinAppExpr (binop, e1, e2) ->
       begin
