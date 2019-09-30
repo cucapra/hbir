@@ -34,6 +34,7 @@ let rec eval_expr (ctxt : ctxt) (e : Ast.expr) : Ast.value =
         | Minus -> Ast.IntVal (n1 - n2)
         | Mul -> Ast.IntVal (n1 * n2)
         | Div -> Ast.IntVal (n1 / n2)
+        | Mod -> Ast.IntVal (n1 mod n2)
         | _ -> failwith "unimplemented binop"
       else failwith "only int exprs supported"
       end

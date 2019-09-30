@@ -104,6 +104,7 @@ and binop =
     | Minus
     | Mul
     | Div
+    | Mod
     | Eq
     | Neq
     | Lt
