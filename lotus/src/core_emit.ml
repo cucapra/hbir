@@ -92,6 +92,7 @@ and expr_emit (e : Ast.expr) : string =
         | Ast.Minus -> "-"
         | Ast.Mul -> "*"
         | Ast.Div -> "/"
+        | Ast.Mod -> "%"
         | Ast.Eq -> "=="
         | Ast.Neq -> "!="
         | Ast.Lt -> "<"
@@ -99,7 +100,7 @@ and expr_emit (e : Ast.expr) : string =
         | Ast.Lteq -> "<="
         | Ast.Gteq -> ">="
         | Ast.And -> "&&"
-        | Ast.Or -> "||" in
+        | Ast.Or -> "||" in 
 
   begin match e with
   | VarExpr str -> str

@@ -68,6 +68,7 @@ open Ast
 %token MINUS
 %token TIMES
 %token DIV
+%token MOD
 
 %token EQ
 %token LT
@@ -281,6 +282,7 @@ let expr :=
     | ~ = binapp(MINUS; { Minus}); <>
     | ~ = binapp(TIMES; { Mul }); <>
     | ~ = binapp(DIV; { Div}); <>
+    | ~ = binapp(MOD; { Mod}); <>
     | ~ = binapp(EQEQ; { Eq }); <>
     | ~ = binapp(NEQ; { Neq }); <>
     | ~ = binapp(LT; { Lt }); <>

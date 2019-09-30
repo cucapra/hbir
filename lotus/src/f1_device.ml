@@ -117,13 +117,12 @@ let emit (filename : string) (prog : Ast.program) : string =
         then "void" (*failwith Error.no_output_array*)
         else Core_emit.type_emit (List.hd output_arrays).Ast.data_type in
 
-    let params = 
-      (ds.Ast.ds_data_decls
-       |> List.map 
+    let par_list : (string * string) list = 
+      prog.data_section.Ast.ds_data_decls
+      |> List.map 
             (fun d -> 
-              ("*" ^ d.Ast.data_name, 
-              (Core_emit.type_emit d.Ast.data_type) ^ "32_t"))
-      ) in
+              let typ = Core_emit.type_emit d.Ast.data_type in
+              (d.Ast.data_name, typ)) in
 
     let body = 
       let ctxt = Core_emit.build_stmt_ctxt prog in
@@ -136,7 +135,7 @@ let emit (filename : string) (prog : Ast.program) : string =
       [code_body; barrier_completion] |> String.concat "\n" in
 
     let fun_name : string = fun_name_of_pattern cb.cb_group_name in
-    Core_emit.fun_emit ret_type fun_name params body in
+    Core_emit.fun_emit ret_type fun_name par_list body in
 
 
   let main_def (main_name : string) (prog : Ast.program) : string =
@@ -150,10 +149,7 @@ let emit (filename : string) (prog : Ast.program) : string =
 
     let arg_list : string = 
       prog.data_section.Ast.ds_data_decls
-      |> List.map 
-            (fun d -> Printf.sprintf "*%s %s32_t"
-              d.Ast.data_name
-              (Core_emit.type_emit d.Ast.data_type))
+      |> List.map (fun d -> d.Ast.data_name)
       |> String.concat ", " in
 
     let code_block_emit (cb : Ast.code_block_decl) : string =
@@ -167,7 +163,7 @@ let emit (filename : string) (prog : Ast.program) : string =
           (range_check_emit tile_id_y_var g.g_abs_col_range) in
 
         let then_body : string = 
-          Printf.sprintf "%s(%s)" 
+          Printf.sprintf "%s(%s);" 
           (fun_name_of_pattern cb.cb_group_name) 
           arg_list in
           
