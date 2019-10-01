@@ -107,6 +107,6 @@ let prog =
       end;
     if !run_visualize then 
       begin
-        (*Group.print_config_section prog;*)
+        Group.print_config_section prog;
         Visualize.generate_arrangement_image prog;
       end

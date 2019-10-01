@@ -62,7 +62,7 @@ let emit (prog: Ast.program) (filename : string) : string =
 
     let error_check_emit (err : string) : string =
       let if_emit cond body = 
-        "if(%s){\n%s\n}" #% cond (Core_emit.indent 1 body) in
+        "if(%s){\n%s\n}" #% cond (Core_emit.indent 1 " " body) in
       if_emit "err"
         ("fprintf(stderr, \"%s\"); 
           return err;" #% err

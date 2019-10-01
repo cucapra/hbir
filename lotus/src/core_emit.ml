@@ -1,10 +1,10 @@
 (* Output String Templates *)
 let (#%) = Printf.sprintf
 
-let indent (n : int) (s : string) : string =
+let indent (n : int) (indentation : string) (s : string) : string =
   let rec indentation_builder (n : int) : string = 
     if n == 0 then ""
-    else "\t" ^ indentation_builder (n-1) in
+    else indentation ^ indentation_builder (n-1) in
   let indentation : string = indentation_builder n in
   let lines : string list = String.split_on_char '\n' s in
   let indented_lines = List.map ((^) (indentation)) lines in
@@ -142,7 +142,7 @@ and for_emit (ctxt : stmt_ctxt)
   let inc_stmt_emit = 
     stmt_emit ctxt inc_stmt 
     |> fun s -> String.sub s 0 (String.length s - 1) in
-  let loop_body_emit = indent 1 (stmt_emit ctxt loop_body) in
+  let loop_body_emit = indent 1 " " (stmt_emit ctxt loop_body) in
   "for(%s %s; %s) {\n%s\n}" #% for_init_emit loop_cond_emit inc_stmt_emit loop_body_emit
 
 (* a[e1]..[en] *)
@@ -190,7 +190,7 @@ let fun_emit (ret_typ : string)
     List.map (fun p -> let (x, tau) = p in "%s %s" #% tau x) pars
     |> String.concat ", " in
 
-  let body = indent 1 body in
+  let body = indent 1 " " body in
 
   "%s %s(%s)\n{\n%s\n}" #% ret_typ f pars_emit body
 

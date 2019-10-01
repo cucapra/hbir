@@ -167,7 +167,7 @@ let emit (filename : string) (prog : Ast.program) : string =
           (fun_name_of_pattern cb.cb_group_name) 
           arg_list in
           
-        Printf.sprintf "if(%s)\n{\n%s\n}" if_cond (Core_emit.indent 1 then_body) in
+        Printf.sprintf "if(%s)\n{\n%s\n}" if_cond (Core_emit.indent 1 "  " then_body) in
 
       print_endline (let s, _ = cb.cb_group_name |> List.hd in s);
       print_endline ("matching groups: " ^ string_of_int (List.length matching_abs_groups));

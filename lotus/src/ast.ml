@@ -127,6 +127,7 @@ and stmt =
 
 
 (* utility types *)
+and group_path = (string * int list) list
 and group_pattern = (string * ix_pattern) list
 and ix_elem_pattern = SymIx of string | ConcIx of int
 and ix_pattern = ix_elem_pattern list

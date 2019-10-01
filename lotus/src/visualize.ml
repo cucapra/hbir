@@ -72,28 +72,25 @@ let generate_arrangement_image (prog : Ast.program) =
   let draw_abs_arrangement (arr : Group.abs_arrangement) : Vg.image =
     let grid_rows, _ = arr.abs_arr_grid_size in
 
-    let rec draw_group_array (parent_name : string) 
-                             (color : color) 
-                             (ga : Group.group_array) : Vg.image =
-      let ix_group_images : Vg.image list = List.map (draw_ix_group parent_name color) ga.ga_indexed_groups in
+    let rec draw_group_array (color : color) 
+                             (ga : Group.abs_group_array) : Vg.image =
+      let ix_group_images : Vg.image list = List.map (draw_ix_group color) ga.ga_groups in
       List.fold_right I.blend ix_group_images I.void
       
-    and draw_ix_group (parent_name : string) 
-                      (color : color) 
-                      (ix_g : Group.ga_index * Group.abs_group) : Vg.image =
-      let ix, g = ix_g in
-      let group_name = 
-        Printf.sprintf "%s.%s%s" parent_name g.g_rel_name (Group.ga_index_to_string ix) in
+    and draw_ix_group (color : color) 
+                      (g : Group.abs_group) : Vg.image =
+      let group_name = Group.string_of_path g.g_path in
       let ix_group_image : Vg.image = 
-        draw_rectangle color 
-        (if List.length g.g_subgroups == 0 then group_name else "")
+        draw_rectangle color
+        group_name
         grid_rows g.Group.g_abs_row_range g.Group.g_abs_col_range in
 
-      List.map (draw_group_array group_name (Color.with_a color (Color.a color *. 0.5))) g.g_subgroups 
+      let color = Color.with_a color (Color.a color *. 0.5) in
+      List.map (draw_group_array color) g.g_subgroups 
       |> List.fold_left I.blend ix_group_image in
       
     let grid_image : Vg.image = draw_grid arr.abs_arr_grid_size in
-    let colored_group_arrays : (Group.group_array * color) list = 
+    let colored_group_arrays : (Group.abs_group_array * color) list = 
       let color_from_int (i : int) : color = 
         Random.init i;
         Color.v (Random.float 1.) (Random.float 1.) (Random.float 1.) 0.2 in
@@ -102,7 +99,7 @@ let generate_arrangement_image (prog : Ast.program) =
     let group_arrays_image : Vg.image = 
       List.map 
       (fun ga_c -> 
-        let (ga, c) = ga_c in draw_group_array "t" c ga
+        let (ga, c) = ga_c in draw_group_array c ga
       ) colored_group_arrays
     |> List.fold_left I.blend I.void in
     
