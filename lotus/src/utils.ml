@@ -1,6 +1,13 @@
 type binding = string * int
 type ctxt = binding list
 
+let string_of_ctxt ctxt =
+  let string_of_binding b =
+    let name, v = b in 
+    Printf.sprintf "%s = %d" name v in
+  List.map string_of_binding ctxt
+  |> String.concat ", "
+
 let typecheck (_ : Ast.expr) (_ : Ast.typ) : bool = true
 let typeof (_ : Ast.value) : Ast.typ = Ast.IntTyp
 

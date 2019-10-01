@@ -8,9 +8,8 @@ and abs_group_array = {
   ga_groups : abs_group list }
 
 and abs_group = {
-  (* relative name; absolute name computable with index *)
-  g_path : Ast.group_path; 
-
+  g_path : Ast.group_path;
+  g_index_bindings : Utils.ctxt;
   (* closed intervals for absolute ranges *)
   g_abs_row_range : int * int; 
   g_abs_col_range : int * int; 
@@ -18,6 +17,7 @@ and abs_group = {
   g_subgroups : abs_group_array list }
 
 and ga_index = int list
+and abs_range = int * int (* closed interval *)
 
 let rec ga_index_to_string ix : string = 
   begin match ix with
@@ -65,29 +65,30 @@ let arrange_decl_to_abs_arrangement (tile_grid_size : int * int)
       ga_dim_bounds = dim_bounds;
       ga_groups = 
         List.map 
-        (rel_ix_group_to_abs_ix_group par_group_path par_ix_ctxt par_size_ctxt g_decl par_origin) 
+        (rel_group_to_abs_group par_group_path par_ix_ctxt par_size_ctxt g_decl par_origin) 
         indices }
 
-  (* calculate indexed absolute group corresponding to relative group at a given index
-   * note that relative subgroups are recursively parametrized by all given indices *)
- and rel_ix_group_to_abs_ix_group (par_group_path : Ast.group_path) 
-                                  (par_ix_ctxt : Utils.ctxt)
-                                  (par_size_ctxt : Utils.ctxt)
-                                  (g_decl : Ast.group_decl)
-                                  (abs_offset : int * int)
-                                  (ix_ctxt : Utils.ctxt) : abs_group =
+  (* calculate absolute group corresponding to relative group at a given index
+   * note that relative subgroups are recursively parametrized by parent indices *)
+ and rel_group_to_abs_group (par_group_path : Ast.group_path) 
+                            (par_ix_ctxt : Utils.ctxt)
+                            (par_size_ctxt : Utils.ctxt)
+                            (g_decl : Ast.group_decl)
+                            (abs_offset : int * int)
+                            (ix_ctxt : Utils.ctxt) : abs_group =
     let abs_row_offset, abs_col_offset = abs_offset in 
     let row_size_name, row_range = g_decl.Ast.gd_row_range in
     let col_size_name, col_range = g_decl.Ast.gd_col_range in
 
-    let full_ctxt : Utils.ctxt = par_size_ctxt @ par_ix_ctxt @ ix_ctxt in
+    let active_indices = par_ix_ctxt @ ix_ctxt in
+    let full_ctxt : Utils.ctxt = par_size_ctxt @ active_indices in
     let min_row, max_row = Utils.eval_range full_ctxt row_range in
     let min_col, max_col = Utils.eval_range full_ctxt col_range in
 
     let subgroup_par_size_ctxt = 
       [(row_size_name, (max_row - min_row));
        (col_size_name, (max_col - min_col))] in
-    let subgroup_ix_ctxt = par_ix_ctxt @ ix_ctxt in
+    let subgroup_ix_ctxt = active_indices in
 
     (* evaluate nested group_decls only using index bindings; we remove parent size bindings *)
     let _, ix = List.split ix_ctxt in 
@@ -102,6 +103,7 @@ let arrange_decl_to_abs_arrangement (tile_grid_size : int * int)
       g_decl.Ast.gd_subgroups in
 
     { g_path = path;
+      g_index_bindings = active_indices;
       g_abs_row_range = 
         (min_row + abs_row_offset, 
         max_row - 1 + abs_row_offset);
@@ -147,12 +149,12 @@ let abs_arrangement_from_prog (prog : Ast.program) : abs_arrangement =
 let rec match_pattern_with_path (pattern : Ast.group_pattern)
                                 (path : Ast.group_path) : bool =
   match pattern, path with
-  | (g_name1, patt_ix)::rem_patt, (g_name2, path_ix)::rem_path -> 
-      g_name1 = g_name2 && 
-      match_pattern_ix_with_path_ix patt_ix path_ix &&
-      match_pattern_with_path rem_patt rem_path
-  | (g_name, _)::_, _ -> failwith ("unknown name in pattern: " ^ g_name)
-  | _, _ -> true
+  | (g_name1, patt_ix)::rem_patt, (g_name2, path_ix)::rem_path ->
+      if g_name1 = g_name2
+      then match_pattern_ix_with_path_ix patt_ix path_ix &&
+           match_pattern_with_path rem_patt rem_path
+      else false
+  | _, _ -> List.length pattern > List.length path
 
 and match_pattern_ix_with_path_ix (patt_ix : Ast.ix_elem_pattern list) 
                                   (path_ix : int list) : bool = 
@@ -167,36 +169,67 @@ and match_pattern_ix_with_path_ix (patt_ix : Ast.ix_elem_pattern list)
   | _, _ -> failwith "index matching failed: pattern size mismatch"
 
 
-let match_in_abs_arrangement (pattern : Ast.group_pattern)
-                             (arr : abs_arrangement)
-                             : abs_group list =
+let match_abs_groups (pattern : Ast.group_pattern)
+                     (arr : abs_arrangement)
+                     : abs_group list =
   let rec match_in_group_array (pattern : Ast.group_pattern)
+                               (curr_depth : int)
                                (ga : abs_group_array) : abs_group list =
-    ga.ga_groups
-    |> List.map (match_in_group pattern)
-    |> List.concat
-    |> List.map (fun ga -> ga.ga_groups)
-    |> List.concat
+      if List.length pattern = 0 then []
+      else 
+        let (g_name, _) = List.nth pattern curr_depth in
+        if ga.ga_rel_name = g_name
+        then 
+          ga.ga_groups
+          |> List.map (match_in_group pattern curr_depth)
+          |> List.concat
+          |> List.map (fun ga -> ga.ga_groups)
+          |> List.concat
+        else []
 
   and match_in_group (pattern : Ast.group_pattern)
+                     (curr_depth : int)
                      (g : abs_group) : abs_group_array list =
     if match_pattern_with_path pattern g.g_path
-    then  List.map (match_in_group_array pattern) g.g_subgroups
+    then  List.map (match_in_group_array pattern (curr_depth+1)) g.g_subgroups
           |> List.concat
           |> List.map (fun g -> g.g_subgroups)
           |> List.concat
     else g.g_subgroups in
-    
-  List.map (match_in_group_array pattern) arr.abs_arr_group_arrays |> List.concat
 
-let match_in_program (prog : Ast.program) 
+  List.map (match_in_group_array pattern 0) arr.abs_arr_group_arrays |> List.concat
+
+let match_in_program (prog : Ast.program)
                      (gp : Ast.group_pattern) : abs_group list =
   let arr : abs_arrangement = abs_arrangement_from_prog prog in
   match gp with
   (* first element of pattern is tile grid name 
    * in the future, perhaps match on list of arrangements *)
-  | (_, [])::gps -> match_in_abs_arrangement gps arr
+  | (_, [])::gps -> match_abs_groups gps arr
   | _ -> failwith "cannot index into physical tile grid"
+
+
+
+ (* Mapping from (group_pattern, tile_id) -> [ix_binding]
+ * 1. Let G = largest, unnested set of abs_groups matching group_pattern
+ * 2. Filter G by those containing tile_id in their range
+ * 3. Return corresponding indices *)
+let lookup_group_indices_for_tile (a : abs_arrangement)
+                                  (patt : Ast.group_pattern)
+                                  (tile_id : int * int)
+                                  : Utils.ctxt list =
+  let row, col = tile_id in
+  let is_in_range (row_range : int * int) (col_range : int * int) : bool =
+    let min_row, max_row = row_range in
+    let min_col, max_col = col_range in
+    min_row <= row && row <= max_row &&
+    min_col <= col && col <= max_col in
+
+  match_abs_groups patt a
+  |> List.filter (fun g -> is_in_range g.g_abs_row_range g.g_abs_col_range)
+  |> List.map (fun g -> g.g_index_bindings)
+
+
 
 
 
@@ -238,15 +271,6 @@ and string_of_abs_group (depth : int) (g : abs_group) : string =
   (string_of_path g.g_path)
   row_min row_max col_min col_max 
   (List.map (string_of_abs_group_array (depth + 1))g.g_subgroups |> String.concat ",\n\t")
-
-(* Alternative entry point for printing *)
-and print_group (g : abs_group) : string =
-  let row_min, row_max = g.g_abs_row_range in
-  let col_min, col_max = g.g_abs_col_range in
-  Printf.sprintf "group_name: %s\ngroup_range: (%d:%d, %d:%d)\n\t{%s\n\t}"
-  (string_of_path g.g_path)
-  row_min row_max col_min col_max 
-  (List.map (string_of_abs_group_array 0) g.g_subgroups |> String.concat ",\n\t")
 
 let print_abs_arrangement (a : abs_arrangement) : unit =
   List.map (string_of_abs_group_array 0) a.abs_arr_group_arrays

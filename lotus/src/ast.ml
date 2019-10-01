@@ -43,7 +43,7 @@ and group_decl = {
   gd_subgroups : group_decl list
 }
 
-and range = expr option * expr option
+and range = expr option * expr option (* half-open interval *)
 
 (* ------ data section ------ *)
 and data_section = {

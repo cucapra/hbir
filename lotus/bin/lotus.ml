@@ -107,6 +107,13 @@ let prog =
       end;
     if !run_visualize then 
       begin
-        Group.print_config_section prog;
-        Visualize.generate_arrangement_image prog;
+        (* Group.print_config_section prog; *)
+        let a = Group.abs_arrangement_from_prog prog in 
+        (*
+        Group.lookup_group_indices_for_tile a [] (0,0) |>
+        List.iter (fun ctxt -> print_endline (Utils.string_of_ctxt ctxt))
+        *)
+        Group.match_abs_groups [("bot_right_corner", [])] a |>
+        List.iter (fun g -> print_endline (Group.string_of_abs_group 0 g))
+        (* Visualize.generate_arrangement_image prog; *)
       end
