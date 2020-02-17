@@ -81,20 +81,20 @@ let prog =
       let ch =
         try open_in f
         with Sys_error s -> failwith ("Cannot open file: " ^ s) in
-        let prog : program =
-          let lexbuf = Lexing.from_channel ch in
-          try
-              Parser.main Lexer.token lexbuf
-          with
-              | _ ->
-                close_in ch;
-                let pos = lexbuf.Lexing.lex_curr_p in
-                let tok = (Lexing.lexeme lexbuf) in
-                let cnum = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
-                failwith ("Parsing error at token '" ^ tok ^ "', line "
-                 ^ (string_of_int pos.Lexing.pos_lnum) ^ ", column " ^ string_of_int cnum)
-                in
-      close_in ch;
+      let prog : program =
+        let lexbuf = Lexing.from_channel ch in
+        try
+            Parser.main Lexer.token lexbuf
+        with
+            | _ ->
+              close_in ch;
+              let pos = lexbuf.Lexing.lex_curr_p in
+              let tok = (Lexing.lexeme lexbuf) in
+              let cnum = pos.Lexing.pos_cnum - pos.Lexing.pos_bol in
+              failwith ("Parsing error at token '" ^ tok ^ "', line "
+               ^ (string_of_int pos.Lexing.pos_lnum) ^ ", column " ^ string_of_int cnum)
+              in
+    close_in ch;
     if !run_f1 then 
       begin
         let filename : string = 
